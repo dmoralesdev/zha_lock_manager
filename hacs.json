@@ -1,10 +1,10 @@
 {
   "name": "ZHA Lock Manager",
-  "sidebar_title": "ZHA Lock Manager",
-  "sidebar_icon": "mdi:lock-smart",
   "domain": "zha_lock_manager",
+  "sidebar_icon": "mdi:lock-smart",
+  "homeassistant": "2024.6.0",
   "codeowners": [
     "@dmoralesdev"
   ],
-  "homeassistant": "2024.6.0"
+  "render_readme": true
 }
