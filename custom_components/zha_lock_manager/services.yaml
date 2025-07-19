@@ -1,0 +1,88 @@
+
+add_code:
+  name: Add User Code
+  description: Add a user code to the lock
+  fields:
+    lock_entity:
+      description: Lock entity
+      example: lock.front_door
+      required: true
+      selector:
+        entity:
+          domain: lock
+    user_code:
+      description: Numeric user code
+      required: true
+      example: "1234"
+      selector:
+        text:
+    name:
+      description: Friendly name
+      required: false
+      selector:
+        text:
+    slot:
+      description: Slot number to use, optional
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 250
+    expire_at:
+      description: ISO date time when code expires, optional
+      required: false
+      selector:
+        text:
+delete_code:
+  name: Delete User Code
+  description: Remove a user code from the lock
+  fields:
+    lock_entity:
+      description: Lock entity
+      example: lock.front_door
+      required: true
+      selector:
+        entity:
+          domain: lock
+    slot:
+      description: Slot number to delete
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 250
+create_temp_code:
+  name: Create Temporary Code
+  description: Create a temporary code that expires automatically
+  fields:
+    lock_entity:
+      description: Lock entity
+      required: true
+      selector:
+        entity:
+          domain: lock
+    user_code:
+      description: Numeric user code
+      required: true
+      selector:
+        text:
+    name:
+      description: Friendly name
+      required: false
+      selector:
+        text:
+    slot:
+      description: Slot number to use, optional
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 250
+    duration_minutes:
+      description: Valid duration in minutes
+      required: false
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 1440

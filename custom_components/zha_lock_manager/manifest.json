@@ -1,0 +1,14 @@
+{
+  "domain": "zha_lock_manager",
+  "name": "ZHA Lock Manager",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yourusername/zha_lock_manager",
+  "issue_tracker": "https://github.com/yourusername/zha_lock_manager/issues",
+  "dependencies": [],
+  "codeowners": [
+    "@dmoralesdev"
+  ],
+  "requirements": [],
+  "config_flow": true,
+  "iot_class": "local_push"
+}
