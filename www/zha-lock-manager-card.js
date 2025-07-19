@@ -19,7 +19,7 @@ class ZhaLockManagerCard extends LitElement {
   }
 
   /** ---------- helpers ---------- */
-  _discoverLocks() {
+  discoverLocks() {
     // sensors created by the integration end with "_codes"
     const sensors = Object.keys(this.hass.states).filter(
       (id) => id.startsWith("sensor.") && id.endsWith("_codes")
@@ -39,7 +39,7 @@ class ZhaLockManagerCard extends LitElement {
     if (!this.hass) return html``;
 
     // 1. determine target lock
-    const locks = this._discoverLocks();
+    const locks = this.discoverLocks();
     if (!locks.length)
       return html`<ha-card>
         <p>No ZHA Lock Manager sensors found</p>
@@ -51,7 +51,7 @@ class ZhaLockManagerCard extends LitElement {
     }
     const sensorId = `sensor.${this._lock.replace(/\./g, "_")}_codes`;
     const sensor = this.hass.states[sensorId];
-    const codes = sensor ? Object.entries(sensor.attributes) : [];
+    const codes = sensor ? Object.entries(sensor.attributes).filter(([k]) => /^\d+$/.test(k)) : [];
 
     return html`
       <ha-card header="ZHA Lock Codes">
