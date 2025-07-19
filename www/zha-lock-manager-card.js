@@ -1,4 +1,4 @@
-/* zha-lock-manager-card.js  v2025‑07‑19 */
+/* zha-lock-manager-card.js – 2025‑07‑19 patched */
 import { LitElement, html, css } from "https://unpkg.com/lit-element?module";
 
 class ZhaLockManagerCard extends LitElement {
@@ -7,29 +7,21 @@ class ZhaLockManagerCard extends LitElement {
   }
 
   setConfig(config) {
-    // keep the config object
     this.config = { ...config };
-
-    // Allow omission of "lock" – will auto‑discover later
-    if (config.lock) {
-      this._lock = config.lock;          // user‑pinned lock
-    } else {
-      this._lock = undefined;            // will be set in render()
-    }
+    this._lock  = config.lock ?? undefined;   // undefined triggers auto‑discover
   }
 
   /** ---------- helpers ---------- */
-  discoverLocks() {
-    // sensors created by the integration end with "_codes"
+  _discoverLocks() {
+    // Sensors created by the integration end with "_codes"
     const sensors = Object.keys(this.hass.states).filter(
       (id) => id.startsWith("sensor.") && id.endsWith("_codes")
     );
 
     return sensors.map((s) => {
-      const st = this.hass.states[s];
-      // The integration sets friendly_name to "<lock_entity_id> codes"
-      const fn = st?.attributes?.friendly_name ?? "";
-      const lockId = fn.replace(/ codes$/i, "");  // exact original entity id
+      const st  = this.hass.states[s];
+      const fn  = st?.attributes?.friendly_name ?? "";
+      const lockId = fn.replace(/ codes$/i, "");   // exact original entity id
       return { lockId, sensorId: s };
     });
   }
@@ -38,20 +30,20 @@ class ZhaLockManagerCard extends LitElement {
   render() {
     if (!this.hass) return html``;
 
-    // 1. determine target lock
-    const locks = this.discoverLocks();
+    /* 1. Pick a lock */
+    const locks = this._discoverLocks();
     if (!locks.length)
-      return html`<ha-card>
-        <p>No ZHA Lock Manager sensors found</p>
-      </ha-card>`;
+      return html`<ha-card><p>No ZHA Lock Manager sensors found</p></ha-card>`;
 
-    if (!this._lock) {
-      // default to first one
-      this._lock = locks[0].lockId;
-    }
+    if (!this._lock) this._lock = locks[0].lockId;
+
     const sensorId = `sensor.${this._lock.replace(/\./g, "_")}_codes`;
-    const sensor = this.hass.states[sensorId];
-    const codes = sensor ? Object.entries(sensor.attributes).filter(([k]) => /^\d+$/.test(k)) : [];
+    const sensor   = this.hass.states[sensorId];
+
+    // keep only numeric keys (slot numbers)
+    const codes = sensor
+      ? Object.entries(sensor.attributes).filter(([k]) => /^\d+$/.test(k))
+      : [];
 
     return html`
       <ha-card header="ZHA Lock Codes">
@@ -78,7 +70,7 @@ class ZhaLockManagerCard extends LitElement {
                   <div class="code-row">
                     <span>Slot&nbsp;${slot}</span>
                     <span>${info.name || ""}</span>
-                    <span>${info.code}</span>
+                    <span>${info.code || ""}</span>
                     <mwc-button @click=${() => this._delete(slot)}>Delete</mwc-button>
                   </div>
                 `
