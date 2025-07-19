@@ -1,51 +1,100 @@
-
+/* zha-lock-manager-card.js  v2025‑07‑19 */
 import { LitElement, html, css } from "https://unpkg.com/lit-element?module";
 
 class ZhaLockManagerCard extends LitElement {
   static get properties() {
-    return { hass: {}, config: {} };
+    return { hass: {}, config: {}, _lock: {} };
   }
 
   setConfig(config) {
-    if (!config.lock) {
-      throw new Error("Missing 'lock' property in card config");
+    // keep the config object
+    this.config = { ...config };
+
+    // Allow omission of "lock" – will auto‑discover later
+    if (config.lock) {
+      this._lock = config.lock;          // user‑pinned lock
+    } else {
+      this._lock = undefined;            // will be set in render()
     }
-    this.config = config;
   }
 
+  /** ---------- helpers ---------- */
+  _discoverLocks() {
+    // Sensors created by the integration end with "_codes"
+    const sensors = Object.keys(this.hass.states).filter(
+      (id) => id.startsWith("sensor.") && id.endsWith("_codes")
+    );
+    return sensors.map((s) => {
+      // reverse engineer lock entity id
+      const lockId = s
+        .replace("sensor.", "")
+        .replace(/_codes$/, "")
+        .replace(/_/g, ".");
+      return { lockId, sensorId: s };
+    });
+  }
+
+  /** ---------- rendering ---------- */
   render() {
     if (!this.hass) return html``;
-    const lockId = this.config.lock;
-    const sensorId = `sensor.${lockId.replace('.', '_')}_codes`;
+
+    // 1. determine target lock
+    const locks = this._discoverLocks();
+    if (!locks.length)
+      return html`<ha-card>
+        <p>No ZHA Lock Manager sensors found</p>
+      </ha-card>`;
+
+    if (!this._lock) {
+      // default to first one
+      this._lock = locks[0].lockId;
+    }
+    const sensorId = `sensor.${this._lock.replace(/\./g, "_")}_codes`;
     const sensor = this.hass.states[sensorId];
     const codes = sensor ? Object.entries(sensor.attributes) : [];
 
     return html`
       <ha-card header="ZHA Lock Codes">
+        ${locks.length > 1
+          ? html`
+              <div class="row">
+                <span>Lock:</span>
+                <select @change=${(e) => (this._lock = e.target.value)}>
+                  ${locks.map(
+                    (l) =>
+                      html`<option value=${l.lockId} ?selected=${l.lockId === this._lock}
+                        >${l.lockId}</option
+                      >`
+                  )}
+                </select>
+              </div>
+            `
+          : null}
+
         <div class="codes">
-          ${
-            codes.length
-              ? codes.map(
-                  ([slot, info]) => html`
-                    <div class="code-row">
-                      <span>Slot ${slot}</span>
-                      <span>${info.name || ""}</span>
-                      <span>${info.code}</span>
-                      <mwc-button @click=${() => this._delete(slot)}>Delete</mwc-button>
-                    </div>
-                  `
-                )
-              : html`<p>No codes found</p>`
-          }
+          ${codes.length
+            ? codes.map(
+                ([slot, info]) => html`
+                  <div class="code-row">
+                    <span>Slot&nbsp;${slot}</span>
+                    <span>${info.name || ""}</span>
+                    <span>${info.code}</span>
+                    <mwc-button @click=${() => this._delete(slot)}>Delete</mwc-button>
+                  </div>
+                `
+              )
+            : html`<p>No codes found</p>`}
         </div>
+
         <mwc-button @click=${this._openAddDialog.bind(this)}>Add Code</mwc-button>
       </ha-card>
     `;
   }
 
+  /** ---------- actions ---------- */
   async _delete(slot) {
     await this.hass.callService("zha_lock_manager", "delete_code", {
-      lock_entity: this.config.lock,
+      lock_entity: this._lock,
       slot: Number(slot),
     });
   }
@@ -58,24 +107,31 @@ class ZhaLockManagerCard extends LitElement {
     if (temp) {
       const mins = prompt("Duration in minutes:", "60");
       await this.hass.callService("zha_lock_manager", "create_temp_code", {
-        lock_entity: this.config.lock,
+        lock_entity: this._lock,
         user_code: code,
         name,
         duration_minutes: Number(mins) || 60,
       });
     } else {
       await this.hass.callService("zha_lock_manager", "add_code", {
-        lock_entity: this.config.lock,
+        lock_entity: this._lock,
         user_code: code,
         name,
       });
     }
   }
 
+  /** ---------- styles ---------- */
   static get styles() {
     return css`
       ha-card {
         padding: 16px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        gap: 8px;
       }
       .code-row {
         display: grid;
