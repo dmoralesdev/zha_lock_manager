@@ -1,6 +1,5 @@
 
 from __future__ import annotations
-
 import logging
 import voluptuous as vol
 from datetime import datetime, timedelta
@@ -24,9 +23,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = manager
     await manager.async_load()
 
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(entry, "sensor")
-    )
+    # Forward sensor platform using API compatible with multiple HA versions
+    if hasattr(hass.config_entries, "async_forward_entry_setups"):
+        # HA 2024.12 and later
+        await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
+    else:
+        # Older versions
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, "sensor")
+        )
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
     return True
@@ -54,6 +59,7 @@ class ZhaLockManager:
     async def async_save(self):
         await self.store.async_save(self.codes)
 
+    # ---------- Services ----------
     def _register_services_once(self):
         if self.hass.services.has_service(DOMAIN, "add_code"):
             return
@@ -121,17 +127,14 @@ class ZhaLockManager:
             ),
         )
 
+    # ---------- Code management ----------
     async def async_add_code(self, lock_entity, user_code, name, slot, expire_dt):
         slot = slot or self._next_available_slot(lock_entity)
 
         await self.hass.services.async_call(
             "zha",
             "set_lock_user_code",
-            {
-                "entity_id": lock_entity,
-                "code_slot": slot,
-                "user_code": user_code,
-            },
+            {"entity_id": lock_entity, "code_slot": slot, "user_code": user_code},
             blocking=True,
         )
 
@@ -148,10 +151,7 @@ class ZhaLockManager:
         await self.hass.services.async_call(
             "zha",
             "clear_lock_user_code",
-            {
-                "entity_id": lock_entity,
-                "code_slot": slot,
-            },
+            {"entity_id": lock_entity, "code_slot": slot},
             blocking=True,
         )
         if lock_entity in self.codes and slot in self.codes[lock_entity]:
@@ -166,6 +166,7 @@ class ZhaLockManager:
             slot += 1
         return slot
 
+    # ---------- Expiration ----------
     def _schedule_cleanup(self):
         if self._expiration_cleanup_remove:
             self._expiration_cleanup_remove()
@@ -185,8 +186,9 @@ class ZhaLockManager:
 
         if soonest:
             @callback
-            def _run(now):
+            def _run(_):
                 self.hass.async_create_task(self._cleanup())
+
             self._expiration_cleanup_remove = async_track_point_in_time(
                 self.hass, _run, soonest
             )
