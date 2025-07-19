@@ -20,16 +20,16 @@ class ZhaLockManagerCard extends LitElement {
 
   /** ---------- helpers ---------- */
   _discoverLocks() {
-    // Sensors created by the integration end with "_codes"
+    // sensors created by the integration end with "_codes"
     const sensors = Object.keys(this.hass.states).filter(
       (id) => id.startsWith("sensor.") && id.endsWith("_codes")
     );
+
     return sensors.map((s) => {
-      // reverse engineer lock entity id
-      const lockId = s
-        .replace("sensor.", "")
-        .replace(/_codes$/, "")
-        .replace(/_/g, ".");
+      const st = this.hass.states[s];
+      // The integration sets friendly_name to "<lock_entity_id> codes"
+      const fn = st?.attributes?.friendly_name ?? "";
+      const lockId = fn.replace(/ codes$/i, "");  // exact original entity id
       return { lockId, sensorId: s };
     });
   }
