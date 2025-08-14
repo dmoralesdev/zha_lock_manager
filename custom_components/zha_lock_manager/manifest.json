@@ -1,0 +1,15 @@
+{
+    "domain": "zha_lock_manager",
+    "name": "ZHA Lock Manager",
+    "version": "0.1.0",
+    "documentation": "https://github.com/dmoralesdev/zha_lock_manager",
+    "issue_tracker": "https://github.com/dmoralesdev/zha_lock_manager/issues",
+    "codeowners": ["@yourhandle"],
+    "requirements": [
+      "cryptography>=42.0.0"
+    ],
+    "dependencies": ["zha", "websocket_api", "http", "frontend"],
+    "after_dependencies": ["alarmo"],
+    "config_flow": true,
+    "iot_class": "local_push"
+  }

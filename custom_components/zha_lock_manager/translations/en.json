@@ -1,0 +1,26 @@
+{
+    "title": "ZHA Lock Manager",
+    "config": {
+      "step": {
+        "user": {
+          "title": "Select ZHA Locks",
+          "description": "Pick the Zigbee locks you want to manage.",
+          "data": {
+            "locks": "Locks"
+          }
+        }
+      }
+    },
+    "options": {
+      "step": {
+        "main": {
+          "title": "ZHA Lock Manager Options",
+          "description": "Edit lock metadata and Alarmo integration.",
+          "data": {
+            "alarmo_enabled": "Enable Alarmo integration",
+            "alarmo_entity_id": "Alarmo entity_id"
+          }
+        }
+      }
+    }
+  }

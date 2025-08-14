@@ -1,0 +1,9 @@
+{
+    "name": "ZHA Lock Manager",
+    "render_readme": true,
+    "content_in_root": false,
+    "filename": "",
+    "domains": ["integration"],
+    "country": ["ALL"],
+    "zip_release": false
+}
