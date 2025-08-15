@@ -19,11 +19,14 @@ from .const import (
 
 
 def _entity_to_lock_dict(hass: HomeAssistant, entity_id: str) -> dict[str, Any] | None:
+    """Build the stored lock descriptor for a ZHA lock entity."""
     dev_reg = dr.async_get(hass)
     ent_reg = er.async_get(hass)
+
     ent = ent_reg.async_get(entity_id)
     if not ent or ent.domain != "lock" or ent.platform != "zha":
         return None
+
     device = dev_reg.async_get(ent.device_id) if ent.device_id else None
     if not device:
         return None
@@ -38,6 +41,7 @@ def _entity_to_lock_dict(hass: HomeAssistant, entity_id: str) -> dict[str, Any] 
         "name": device.name or ent.original_name or ent.entity_id,
         "entity_id": ent.entity_id,
         "device_ieee": ieee or "",
+        # The panel manages these per lock. Keep defaults here only for new locks.
         "max_slots": 30,
         "slot_offset": DEFAULT_SLOT_OFFSET,
     }
@@ -53,14 +57,11 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Create and return the options flow handler."""
-        # Do not pass config_entry and do not assign self.config_entry in the handler.
-        # Home Assistant injects self.config_entry automatically.
-        # See dev docs: New options flow properties.
+        """Return the options flow handler."""
         return ZLMOptionsFlowHandler()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        """Pick ZHA lock entities to manage."""
+        """Initial setup: select the ZHA lock entities to manage."""
         if user_input is not None:
             selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             locks: list[dict[str, Any]] = []
@@ -68,98 +69,101 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 lock_dict = _entity_to_lock_dict(self.hass, entity_id)
                 if lock_dict:
                     locks.append(lock_dict)
+
             return self.async_create_entry(
-                title="ZHA Lock Manager", data={CONF_LOCKS: locks}
+                title="ZHA Lock Manager",
+                data={CONF_LOCKS: locks},
             )
 
         schema = vol.Schema(
             {
                 vol.Required(CONF_LOCKS): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="lock", multiple=True)
+                    selector.EntitySelectorConfig(
+                        domain="lock",
+                        integration="zha",
+                        multiple=True,
+                    )
                 )
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_import(self, user_input: dict[str, Any] | None = None):
-        """Support YAML import by delegating to user step."""
+        """YAML import path, delegates to user step."""
         return await self.async_step_user(user_input)
 
 
 class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
-    """Options flow to edit lock metadata and optional Alarmo hookup."""
+    """Options flow: add or remove locks, set global Alarmo options."""
 
     def __init__(self) -> None:
-        # Do not set self.config_entry here. It is provided by HA.
+        # self.config_entry is injected by Home Assistant
         pass
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         return await self.async_step_main(user_input)
 
     async def async_step_main(self, user_input: dict[str, Any] | None = None):
+        # Current stored locks
         data = self.config_entry.data
-        locks: list[dict[str, Any]] = data.get(CONF_LOCKS, [])
+        stored_locks: list[dict[str, Any]] = data.get(CONF_LOCKS, [])
+        by_entity = {l["entity_id"]: l for l in stored_locks if "entity_id" in l}
 
-        # Build per-lock editable fields
-        fields: dict[Any, Any] = {}
-        for idx, l in enumerate(locks):
-            fields[vol.Optional(f"name_{idx}", default=l.get("name", ""))] = str
-            fields[vol.Optional(f"entity_id_{idx}", default=l.get("entity_id", ""))] = str
-            fields[vol.Optional(f"device_ieee_{idx}", default=l.get("device_ieee", ""))] = str
-            fields[vol.Optional(f"max_slots_{idx}", default=l.get("max_slots", 30))] = int
-            fields[
-                vol.Optional(
-                    f"slot_offset_{idx}", default=l.get("slot_offset", DEFAULT_SLOT_OFFSET)
+        # Defaults for the form
+        default_entities = list(by_entity.keys())
+        alarmo_enabled_default = self.config_entry.options.get(CONF_ALARMO_ENABLED, False)
+        alarmo_entity_default = self.config_entry.options.get(
+            CONF_ALARMO_ENTITY_ID, "alarm_control_panel.alarmo"
+        )
+
+        fields: dict[Any, Any] = {
+            # Let users add or remove managed locks in the future
+            vol.Required(CONF_LOCKS, default=default_entities): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="lock",
+                    integration="zha",
+                    multiple=True,
                 )
-            ] = int
-
-        # Global options for Alarmo
-        fields[
-            vol.Optional(
-                CONF_ALARMO_ENABLED,
-                default=self.config_entry.options.get(CONF_ALARMO_ENABLED, False),
-            )
-        ] = bool
-        fields[
-            vol.Optional(
-                CONF_ALARMO_ENTITY_ID,
-                default=self.config_entry.options.get(
-                    CONF_ALARMO_ENTITY_ID, "alarm_control_panel.alarmo"
-                ),
-            )
-        ] = str
+            ),
+            # Global Alarmo settings, apply to all locks
+            vol.Optional(CONF_ALARMO_ENABLED, default=alarmo_enabled_default): bool,
+            vol.Optional(CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default): str,
+        }
 
         if user_input is not None:
-            # Persist lock metadata back to entry.data
+            # Merge selection into stored data:
+            # keep existing per lock fields for locks that remain,
+            # create defaults for brand new locks,
+            # remove locks that were deselected.
+            selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             new_locks: list[dict[str, Any]] = []
-            idx = 0
-            while f"name_{idx}" in user_input:
-                new_locks.append(
-                    {
-                        "name": user_input.get(f"name_{idx}", ""),
-                        "entity_id": user_input.get(f"entity_id_{idx}", ""),
-                        "device_ieee": user_input.get(f"device_ieee_{idx}", ""),
-                        "max_slots": int(user_input.get(f"max_slots_{idx}", 30)),
-                        "slot_offset": int(
-                            user_input.get(f"slot_offset_{idx}", DEFAULT_SLOT_OFFSET)
-                        ),
-                    }
-                )
-                idx += 1
+            for entity_id in selected_entities:
+                if entity_id in by_entity:
+                    new_locks.append(by_entity[entity_id])
+                else:
+                    lock_dict = _entity_to_lock_dict(self.hass, entity_id)
+                    if lock_dict:
+                        new_locks.append(lock_dict)
 
-            # Update entry data only
+            # Update entry.data only with the lock list
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 data={**self.config_entry.data, CONF_LOCKS: new_locks},
             )
 
-            # Persist options by returning them from the options flow
-            return self.async_create_entry(
+            # Persist options by returning them here
+            result = self.async_create_entry(
                 title="ZLM Options",
                 data={
                     CONF_ALARMO_ENABLED: bool(user_input.get(CONF_ALARMO_ENABLED, False)),
                     CONF_ALARMO_ENTITY_ID: user_input.get(CONF_ALARMO_ENTITY_ID, ""),
                 },
             )
+
+            # Reload so the panel picks up lock additions or removals immediately
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            )
+            return result
 
         return self.async_show_form(step_id="main", data_schema=vol.Schema(fields))
