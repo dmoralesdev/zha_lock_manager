@@ -6,8 +6,6 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
-from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.components.frontend import async_remove_panel
 
 from .const import (
     DOMAIN,
@@ -15,7 +13,6 @@ from .const import (
     CONF_ALARMO_ENABLED,
     CONF_ALARMO_ENTITY_ID,
     EVENT_ZHA,
-    PANEL_URL_PATH,
 )
 from .storage import ZLMLocalStore
 from .websocket import register_ws_handlers
@@ -29,6 +26,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Load or reload the integration.
+
+    - Load local store
+    - Seed new locks from entry.data
+    - Prune locks removed in options
+    - Register WS API and panel
+    - Hook ZHA events for Alarmo
+    """
     hass.data.setdefault(DOMAIN, {})
 
     store = ZLMLocalStore(hass)
@@ -36,9 +41,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["store"] = store
     hass.data[DOMAIN]["entry"] = entry
 
-    # Seed locks in storage based on config (entity_id + device_ieee)
-    cfg_locks = entry.data.get(CONF_LOCKS, [])
+    # Locks selected in options
+    cfg_locks: list[dict[str, Any]] = entry.data.get(CONF_LOCKS, [])
+    selected_ieees: set[str] = set()
     dev_reg = dr.async_get(hass)
+
+    # Add or keep selected locks
     for item in cfg_locks:
         entity_id = item.get("entity_id")
         device_ieee = item.get("device_ieee")
@@ -47,8 +55,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         slot_offset = int(item.get("slot_offset", 0))
         if not (entity_id and device_ieee and name):
             continue
-        if device_ieee not in store.locks:
-            from .storage import Lock as LockModel
+        selected_ieees.add(device_ieee)
+
+        # Create only if not present. Do not overwrite existing per lock fields.
+        if device_ieee not in store.locks or store.locks.get(device_ieee) is None:
+            from .storage import Lock as LockModel  # local import to avoid cycle
 
             store.locks[device_ieee] = LockModel(
                 name=name,
@@ -58,14 +69,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 slot_offset=slot_offset,
                 slots={},
             )
+
+    # Remove locks that were deselected in options, erase their data
+    to_delete = [ieee for ieee in list(store.locks.keys()) if ieee not in selected_ieees]
+    if to_delete:
+        for ieee in to_delete:
+            del store.locks[ieee]
+        _LOGGER.debug("ZLM: Pruned removed locks from local store: %s", to_delete)
+
+    # Persist any adds or removals
     await store.async_save()
 
-    # Register WS API once
-    if not hass.data[DOMAIN].get("ws_registered"):
-        register_ws_handlers(hass, store)
-        hass.data[DOMAIN]["ws_registered"] = True
+    # Register WS API
+    register_ws_handlers(hass, store)
 
-    # Register panel (idempotent)
+    # Register or refresh panel
     await async_register_panel(hass)
 
     # Listen for ZHA unlock events to optionally disarm Alarmo
@@ -95,11 +113,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             return
         slot_with_offset = slot + int(lock.slot_offset)
 
+        # Alarmo integration check
         alarmo_enabled = entry.options.get(CONF_ALARMO_ENABLED, False)
         alarmo_entity = entry.options.get(CONF_ALARMO_ENTITY_ID)
         if not alarmo_enabled or not alarmo_entity:
             return
 
+        # Retrieve and decrypt code, if unavailable, do nothing
         code = store.get_plain_code(lock, slot_with_offset)
         if not code:
             _LOGGER.debug("ZLM: No stored code for %s slot %s", device_ieee, slot_with_offset)
@@ -115,24 +135,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         )
 
-    # Store unsubscribe so we can cleanly reload
-    unsub = hass.bus.async_listen(EVENT_ZHA, _zha_event_handler)
-    hass.data[DOMAIN]["unsub_zha_event"] = unsub
+    hass.bus.async_listen(EVENT_ZHA, _zha_event_handler)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    # Remove panel on unload to support reloads without duplicate registration
-    try:
-        async_remove_panel(hass, PANEL_URL_PATH)
-    except Exception:  # best-effort
-        pass
-
-    if (unsub := hass.data.get(DOMAIN, {}).pop("unsub_zha_event", None)):
-        try:
-            unsub()
-        except Exception:
-            pass
-
+    # Nothing else to unload. Panel is stateless, WS handlers are re-registered on setup.
     return True

@@ -1,7 +1,7 @@
 {
     "domain": "zha_lock_manager",
     "name": "ZHA Lock Manager",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "documentation": "https://github.com/dmoralesdev/zha_lock_manager",
     "issue_tracker": "https://github.com/dmoralesdev/zha_lock_manager/issues",
     "codeowners": ["@dmoralesdev"],
