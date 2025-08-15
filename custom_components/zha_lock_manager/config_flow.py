@@ -53,8 +53,11 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Return the options flow handler."""
-        return ZLMOptionsFlowHandler(config_entry)
+        """Create and return the options flow handler."""
+        # Do not pass config_entry and do not assign self.config_entry in the handler.
+        # Home Assistant injects self.config_entry automatically.
+        # See dev docs: New options flow properties.
+        return ZLMOptionsFlowHandler()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Pick ZHA lock entities to manage."""
@@ -86,8 +89,9 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
     """Options flow to edit lock metadata and optional Alarmo hookup."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    def __init__(self) -> None:
+        # Do not set self.config_entry here. It is provided by HA.
+        pass
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         return await self.async_step_main(user_input)
@@ -143,13 +147,13 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
                 )
                 idx += 1
 
-            # Update only data here
+            # Update entry data only
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 data={**self.config_entry.data, CONF_LOCKS: new_locks},
             )
 
-            # Return options via async_create_entry so HA persists them
+            # Persist options by returning them from the options flow
             return self.async_create_entry(
                 title="ZLM Options",
                 data={
