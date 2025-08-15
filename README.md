@@ -1,7 +1,11 @@
 # ZHA Lock Manager
 
 Manage keypad codes for Zigbee locks on Home Assistant through ZHA.  
-Includes a simple side panel to view and edit codes, per lock settings, and an optional global Alarmo integration that disarms on successful keypad or RF unlock.
+Includes a simple side panel to view and edit codes, per lock settings, and an optional global Alarmo integration that disarms on successful keypad unlock.
+
+<p align="center">
+  <img src="custom_components\zha_lock_manager\frontend\zha_lock_manager.png" alt="Zigbee Locks side panel screenshot" width="646">
+</p>
 
 ## Requirements
 
@@ -24,7 +28,7 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
   - Disable code
   - Clear code
 - Optional global Alarmo hook:
-  - On ZHA unlock from Keypad or RF, the integration looks up the matching code and calls `alarm_control_panel.alarm_disarm` with that code
+  - On ZHA unlock from Keypad, the integration looks up the matching code and calls `alarm_control_panel.alarm_disarm` with that code
 
 ## How it works
 
@@ -39,8 +43,8 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 - The integration listens to `zha_event` and filters for:
   - `command: operation_event_notification`
   - `args.operation: Unlock`
-  - `args.source: Keypad` or `RF`
-- When a keypad or RF unlock occurs, it:
+  - `args.source: Keypad`
+- When a keypad unlock occurs, it:
   - Finds the lock by IEEE
   - Applies the `slot_offset` to the reported `code_slot`
   - Decrypts the stored code for that slot
@@ -51,6 +55,9 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 ### HACS
 
 1. In HACS, add this repository, then install **ZHA Lock Manager**.
+
+[![Open your Home Assistant and add this integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=zha_lock_manager)
+
 2. Restart Home Assistant.
 
 ### Manual
@@ -112,7 +119,7 @@ Open the **Zigbee Locks** panel from the sidebar.
 - **Alarmo does not disarm on keypad unlock**  
   - Confirm the code exists in the manager for that slot, and that `slot_offset` is correct.  
   - Confirm **Enable Alarmo integration** is checked in Options and the `alarm_control_panel` entity is valid.  
-  - The disarm hook only fires for `source: Keypad` or `RF`.
+  - The disarm hook only fires for `source: Keypad`.
 
 ## Known limitations
 

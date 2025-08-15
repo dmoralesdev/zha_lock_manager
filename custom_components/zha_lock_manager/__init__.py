@@ -5,8 +5,8 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
 from homeassistant.components.frontend import async_remove_panel
+from homeassistant.helpers import config_validation as cv
 
 from .const import (
     DOMAIN,
@@ -22,14 +22,20 @@ from .panel import async_register_panel
 
 _LOGGER = logging.getLogger(__name__)
 
+# Required when async_setup or setup is present, this is a pure config entry integration
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Load or reload the integration."""
+    """Load or reload the integration.
+
+    Steps: load local store, seed and prune locks based on entry.data,
+    register WS API and panel, then hook ZHA events for Alarmo.
+    """
     hass.data.setdefault(DOMAIN, {})
 
     store = ZLMLocalStore(hass)
@@ -37,7 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN]["store"] = store
     hass.data[DOMAIN]["entry"] = entry
 
-    # Seed and prune locks according to entry.data
+    # Locks selected in options
     cfg_locks: list[dict[str, Any]] = entry.data.get(CONF_LOCKS, [])
     selected_ieees: set[str] = set()
 
@@ -54,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Create only if not present, do not overwrite existing per lock fields
         if device_ieee not in store.locks or store.locks.get(device_ieee) is None:
-            from .storage import Lock as LockModel
+            from .storage import Lock as LockModel  # local import to avoid cycle
 
             store.locks[device_ieee] = LockModel(
                 name=name,
@@ -75,7 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Persist any adds or removals
     await store.async_save()
 
-    # Register WS API once. Handlers now read the store from hass.data each call.
+    # Register WS API once. Handlers read the live store from hass.data on each call.
     if not hass.data[DOMAIN].get("ws_registered"):
         register_ws_handlers(hass)
         hass.data[DOMAIN]["ws_registered"] = True
@@ -91,15 +97,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             device_ieee = data.get("device_ieee")
             command = data.get("command")
             args = data.get("args", {})
-            source = args.get("source")
-            operation = args.get("operation")
+            source = str(args.get("source")).lower()
+            operation = str(args.get("operation")).lower()
             code_slot = args.get("code_slot")
         except Exception:
             return
 
-        if command != "operation_event_notification" or operation != "Unlock":
+        if command != "operation_event_notification" or operation != "unlock":
             return
-        if source not in ("Keypad", "RF"):
+        # Limit to keypad only
+        if source != "keypad":
             return
         if device_ieee not in store.locks:
             return
@@ -119,11 +126,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Retrieve and decrypt code, if unavailable, do nothing
         code = store.get_plain_code(lock, slot_with_offset)
         if not code:
-            _LOGGER.debug("ZLM: No stored code for %s slot %s", device_ieee, slot_with_offset)
+            _LOGGER.debug(
+                "ZLM: No stored code for %s slot %s",
+                device_ieee,
+                slot_with_offset,
+            )
             return
 
         _LOGGER.debug(
-            "ZLM: Disarming Alarmo via code from slot %s for %s",
+            "ZLM: Disarming Alarmo via keypad code from slot %s for %s",
             slot_with_offset,
             device_ieee,
         )
@@ -160,7 +171,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Remove entry, wipe local data, remove panel."""
+    """Handle removal of an entry, wipe local data and key, and remove the panel."""
     try:
         async_remove_panel(hass, PANEL_URL_PATH)
     except Exception:
