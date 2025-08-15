@@ -46,7 +46,7 @@ class Crypto:
 
 
 class ZLMLocalStore:
-    """Simple HA storage wrapper with encrypted codes and typed mapping."""
+    """HA storage wrapper with encrypted codes and typed mapping."""
 
     def __init__(self, hass: HomeAssistant):
         self.hass = hass
@@ -56,7 +56,7 @@ class ZLMLocalStore:
         self.locks: Dict[str, Lock] = {}
 
     async def async_load(self) -> None:
-        # Load/generate key
+        # Load or generate key
         key_data = await self._key_store.async_load()
         if not key_data or "key" not in key_data:
             key = Fernet.generate_key()
@@ -140,3 +140,9 @@ class ZLMLocalStore:
             return self.crypto.decrypt(s.code_encrypted)
         except InvalidToken:
             return None
+
+    async def async_wipe(self) -> None:
+        """Delete all persisted data and reset memory."""
+        self.locks = {}
+        await self._store.async_remove()
+        await self._key_store.async_remove()

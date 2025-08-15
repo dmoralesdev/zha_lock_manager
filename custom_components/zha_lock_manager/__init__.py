@@ -6,6 +6,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.components.frontend import async_remove_panel
 
 from .const import (
     DOMAIN,
@@ -13,6 +14,7 @@ from .const import (
     CONF_ALARMO_ENABLED,
     CONF_ALARMO_ENTITY_ID,
     EVENT_ZHA,
+    PANEL_URL_PATH,
 )
 from .storage import ZLMLocalStore
 from .websocket import register_ws_handlers
@@ -28,11 +30,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Load or reload the integration.
 
-    - Load local store
-    - Seed new locks from entry.data
-    - Prune locks removed in options
-    - Register WS API and panel
-    - Hook ZHA events for Alarmo
+    Steps: load local store, seed and prune locks based on entry.data,
+    register WS API and panel, then hook ZHA events for Alarmo.
     """
     hass.data.setdefault(DOMAIN, {})
 
@@ -57,7 +56,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             continue
         selected_ieees.add(device_ieee)
 
-        # Create only if not present. Do not overwrite existing per lock fields.
+        # Create only if not present, do not overwrite existing per lock fields
         if device_ieee not in store.locks or store.locks.get(device_ieee) is None:
             from .storage import Lock as LockModel  # local import to avoid cycle
 
@@ -80,8 +79,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Persist any adds or removals
     await store.async_save()
 
-    # Register WS API
-    register_ws_handlers(hass, store)
+    # Register WS API once
+    if not hass.data[DOMAIN].get("ws_registered"):
+        register_ws_handlers(hass, store)
+        hass.data[DOMAIN]["ws_registered"] = True
 
     # Register or refresh panel
     await async_register_panel(hass)
@@ -122,10 +123,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Retrieve and decrypt code, if unavailable, do nothing
         code = store.get_plain_code(lock, slot_with_offset)
         if not code:
-            _LOGGER.debug("ZLM: No stored code for %s slot %s", device_ieee, slot_with_offset)
+            _LOGGER.debug(
+                "ZLM: No stored code for %s slot %s",
+                device_ieee,
+                slot_with_offset,
+            )
             return
 
-        _LOGGER.debug("ZLM: Disarming Alarmo via code from slot %s for %s", slot_with_offset, device_ieee)
+        _LOGGER.debug(
+            "ZLM: Disarming Alarmo via code from slot %s for %s",
+            slot_with_offset,
+            device_ieee,
+        )
         hass.create_task(
             hass.services.async_call(
                 "alarm_control_panel",
@@ -135,11 +144,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         )
 
-    hass.bus.async_listen(EVENT_ZHA, _zha_event_handler)
+    # Store unsubscribe so we can cleanly unload
+    unsub = hass.bus.async_listen(EVENT_ZHA, _zha_event_handler)
+    hass.data[DOMAIN]["unsub_zha_event"] = unsub
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    # Nothing else to unload. Panel is stateless, WS handlers are re-registered on setup.
+    """Unload a config entry, remove panel, unsubscribe events."""
+    try:
+        async_remove_panel(hass, PANEL_URL_PATH)
+    except Exception:
+        pass
+
+    if (unsub := hass.data.get(DOMAIN, {}).pop("unsub_zha_event", None)):
+        try:
+            unsub()
+        except Exception:
+            pass
+
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Handle removal of an entry, wipe local data and key, and remove the panel."""
+    try:
+        async_remove_panel(hass, PANEL_URL_PATH)
+    except Exception:
+        pass
+
+    store: ZLMLocalStore | None = hass.data.get(DOMAIN, {}).get("store")
+    if store is None:
+        # If not loaded, instantiate a temporary store to wipe files
+        store = ZLMLocalStore(hass)
+        await store.async_load()
+    await store.async_wipe()
+
+    # Best effort: clear domain data
+    hass.data.pop(DOMAIN, None)
