@@ -1,7 +1,4 @@
-// Minimal custom panel built with Lit. Loaded as a JS module.
-// Provides CRUD of user codes via our websocket API.
-
-/* eslint no-console: 0 */
+/* ZHA Lock Manager panel, Lit-based custom panel */
 import { LitElement, html, css } from "https://unpkg.com/lit@2.8.0/index.js?module";
 
 class ZhaLockManagerPanel extends LitElement {
@@ -24,11 +21,22 @@ class ZhaLockManagerPanel extends LitElement {
     this._selected = 0;
     this._busy = false;
     this._error = "";
+    this._onResize = () => this.requestUpdate();
   }
 
   connectedCallback() {
     super.connectedCallback();
+    window.addEventListener("resize", this._onResize);
     this._refresh();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener("resize", this._onResize);
+    super.disconnectedCallback();
+  }
+
+  get isMobile() {
+    return this.narrow || window.innerWidth <= 820;
   }
 
   async _ws(type, payload = {}) {
@@ -66,7 +74,7 @@ class ZhaLockManagerPanel extends LitElement {
   async _setCode(slot) {
     const code = prompt(`Enter new code for slot ${slot}`);
     if (!code) return;
-    const label = prompt("Optional label for this code (name)") || "";
+    const label = prompt("Optional label for this code") || "";
     try {
       this._busy = true;
       await this._ws("zlm/set_code", { device_ieee: this._lock.device_ieee, slot, code, label });
@@ -79,7 +87,6 @@ class ZhaLockManagerPanel extends LitElement {
   }
 
   async _enableDisable(slot, enable) {
-    // Extra guard so clicks cannot fire in the wrong state even if the button is not disabled for some reason
     const s = this._lock?.slots?.[String(slot)];
     if (!s || !s.has_code) return;
     if (enable && s.enabled) return;
@@ -130,120 +137,204 @@ class ZhaLockManagerPanel extends LitElement {
     }
   }
 
-  render() {
-    const lock = this._lock;
+  /* Desktop slots table */
+  _renderSlotsDesktop(lock) {
     return html`
-      <div class="wrap">
-        <div class="header">
-          <h2>🗝️ ZHA Lock Manager</h2>
-          <ha-button @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
-        </div>
-        ${this._error ? html`<div class="err">${this._error}</div>` : ""}
-        <div class="cols">
-          <div class="left">
-            <div class="card">
-              <h3>Locks</h3>
-              <ul class="list">
-                ${this._locks.map(
-                  (l, idx) => html`
-                    <li class="${idx === this._selected ? "sel" : ""}" @click=${() => { this._selected = idx; this.requestUpdate(); }}>
-                      <div class="name">${l.name}</div>
-                      <div class="sub">${l.entity_id} · ${l.device_ieee}</div>
-                    </li>
-                  `
-                )}
-              </ul>
-            </div>
-          </div>
-          <div class="right">
-            ${lock
-              ? html`
-                  <div class="card">
-                    <h3>Lock: ${lock.name}</h3>
-                    <div class="meta">
-                      <label>Name <input id="name" .value=${lock.name} /></label>
-                      <label>Max slots <input id="max" type="number" min="1" max="250" .value=${String(lock.max_slots || 30)} /></label>
-                      <label>Slot offset <input id="offset" type="number" .value=${String(lock.slot_offset || 0)} /></label>
-                      <ha-button @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
-                    </div>
-                  </div>
+      <div class="card">
+        <h3>Slots</h3>
+        <table class="slots">
+          <thead>
+            <tr>
+              <th class="col-num">#</th>
+              <th class="col-label">Label</th>
+              <th class="col-status">Status</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this._slotRows(lock).map(
+              (s) => html`
+                <tr>
+                  <td>${s.slot}</td>
+                  <td>${s.label || ""}</td>
+                  <td>${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}</td>
+                  <td class="col-actions">
+                    <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                    <ha-button
+                      @click=${() => this._enableDisable(s.slot, true)}
+                      ?disabled=${this._busy || !s.has_code || s.enabled}
+                      >Enable</ha-button
+                    >
+                    <ha-button
+                      @click=${() => this._enableDisable(s.slot, false)}
+                      ?disabled=${this._busy || !s.has_code || !s.enabled}
+                      >Disable</ha-button
+                    >
+                    <ha-button @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}
+                      >Clear</ha-button
+                    >
+                  </td>
+                </tr>
+              `
+            )}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
 
-                  <div class="card">
-                    <h3>Slots</h3>
-                    <table class="slots">
-                      <thead>
-                        <tr>
-                          <th class="col-num">#</th>
-                          <th class="col-label">Label</th>
-                          <th class="col-status">Status</th>
-                          <th class="col-actions">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${this._slotRows(lock).map(
-                          (s) => html`
-                            <tr>
-                              <td>${s.slot}</td>
-                              <td>${s.label || ""}</td>
-                              <td>${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}</td>
-                              <td class="col-actions">
-                                <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
-                                <ha-button
-                                  @click=${() => this._enableDisable(s.slot, true)}
-                                  ?disabled=${this._busy || !s.has_code || s.enabled}
-                                  >Enable</ha-button
-                                >
-                                <ha-button
-                                  @click=${() => this._enableDisable(s.slot, false)}
-                                  ?disabled=${this._busy || !s.has_code || !s.enabled}
-                                  >Disable</ha-button
-                                >
-                                <ha-button @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}
-                                  >Clear</ha-button
-                                >
-                              </td>
-                            </tr>
-                          `
-                        )}
-                      </tbody>
-                    </table>
+  /* Mobile stacked layout, actions on a second row */
+  _renderSlotsMobile(lock) {
+    return html`
+      <div class="card">
+        <h3>Slots</h3>
+        <div class="mobile-slots">
+          ${this._slotRows(lock).map(
+            (s) => html`
+              <div class="mrow">
+                <div class="mhead">
+                  <div class="mnum">#${s.slot}</div>
+                  <div class="mlabel">${s.label || ""}</div>
+                  <div class="mstatus">
+                    ${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}
                   </div>
-                `
-              : html`<div class="card">No locks configured in integration options.</div>`}
-          </div>
+                </div>
+                <div class="mactions">
+                  <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                  <ha-button
+                    @click=${() => this._enableDisable(s.slot, true)}
+                    ?disabled=${this._busy || !s.has_code || s.enabled}
+                    >Enable</ha-button
+                  >
+                  <ha-button
+                    @click=${() => this._enableDisable(s.slot, false)}
+                    ?disabled=${this._busy || !s.has_code || !s.enabled}
+                    >Disable</ha-button
+                  >
+                  <ha-button
+                    @click=${() => this._clear(s.slot)}
+                    ?disabled=${this._busy || !s.has_code}
+                    >Clear</ha-button
+                  >
+                </div>
+              </div>
+            `
+          )}
         </div>
       </div>
     `;
   }
 
+  render() {
+    const lock = this._lock;
+    return html`
+      <ha-app-layout>
+        <app-header slot="header" fixed>
+          <app-toolbar>
+            <ha-menu-button .hass=${this.hass} .narrow=${this.isMobile}></ha-menu-button>
+            <div main-title>🗝️ ZHA Lock Manager</div>
+            <ha-button @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
+          </app-toolbar>
+        </app-header>
+
+        <div class="wrap">
+          ${this._error ? html`<div class="err">${this._error}</div>` : ""}
+          <div class="cols ${this.isMobile ? "one" : ""}">
+            <div class="left">
+              <div class="card">
+                <h3>Locks</h3>
+                <ul class="list">
+                  ${this._locks.map(
+                    (l, idx) => html`
+                      <li
+                        class="${idx === this._selected ? "sel" : ""}"
+                        @click=${() => {
+                          this._selected = idx;
+                          this.requestUpdate();
+                        }}
+                      >
+                        <div class="name">${l.name}</div>
+                        <div class="sub">${l.entity_id} · ${l.device_ieee}</div>
+                      </li>
+                    `
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            <div class="right">
+              ${lock
+                ? html`
+                    <div class="card">
+                      <h3>Lock: ${lock.name}</h3>
+                      <div class="meta">
+                        <label>Name <input id="name" .value=${lock.name} /></label>
+                        <label>Max slots
+                          <input id="max" type="number" min="1" max="250" .value=${String(lock.max_slots || 30)} />
+                        </label>
+                        <label>Slot offset <input id="offset" type="number" .value=${String(lock.slot_offset || 0)} /></label>
+                        <ha-button class="save" @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
+                      </div>
+                    </div>
+
+                    ${this.isMobile ? this._renderSlotsMobile(lock) : this._renderSlotsDesktop(lock)}
+                  `
+                : html`<div class="card">No locks configured in integration options.</div>`}
+            </div>
+          </div>
+        </div>
+      </ha-app-layout>
+    `;
+  }
+
   static get styles() {
     return css`
-      :host { display: block; padding: 16px; }
-      .wrap { max-width: 1200px; margin: 0 auto; }
-      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+      :host { display: block; }
+
+      /* Layout and header */
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
       .cols { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
+      .cols.one { grid-template-columns: 1fr; }
       .card { background: var(--card-background-color); border-radius: 16px; padding: 16px; box-shadow: var(--ha-card-box-shadow, 0 2px 6px rgba(0,0,0,0.12)); margin-bottom: 10px; }
       h3 { margin: 0 0 12px; }
+
+      /* Locks list */
       ul.list { list-style: none; margin: 0; padding: 0; }
       ul.list li { padding: 10px; border-radius: 12px; cursor: pointer; }
       ul.list li:hover { background: rgba(0,0,0,0.05); }
       ul.list li.sel { background: rgba(0,0,0,0.1); }
       .name { font-weight: 600; }
       .sub { font-size: 12px; opacity: 0.7; }
-      .meta label { display: inline-flex; flex-direction: column; margin-right: 12px; }
+
+      /* Meta form */
+      .meta { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; align-items: end; }
+      .meta label { display: inline-flex; flex-direction: column; }
+      .meta .save { justify-self: start; }
+
+      /* Desktop table */
       table.slots { width: 100%; border-collapse: collapse; }
       table.slots th, table.slots td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
-      /* Align headers as requested */
       table.slots th { text-align: left; }
       table.slots th.col-actions, table.slots td.col-actions { text-align: center; }
       ha-button { margin-right: 6px; }
+
+      /* Mobile stacked rows */
+      .mobile-slots .mrow { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+      .mobile-slots .mhead { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+      .mobile-slots .mnum { font-weight: 600; opacity: 0.8; }
+      .mobile-slots .mlabel { font-weight: 500; }
+      .mobile-slots .mstatus { font-size: 14px; opacity: 0.8; justify-self: end; }
+      .mobile-slots .mactions { display: flex; flex-wrap: wrap; gap: 8px; }
+
       .err { background: #ffebee; color: #b71c1c; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; }
-      @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+      /* Responsive tweaks */
+      @media (max-width: 980px) {
+        .meta { grid-template-columns: 1fr 1fr; }
+      }
     `;
   }
 }
 
 customElements.define("zha-lock-manager-panel", ZhaLockManagerPanel);
-
-// Expose a dummy class name to satisfy panel registration
 export default ZhaLockManagerPanel;
