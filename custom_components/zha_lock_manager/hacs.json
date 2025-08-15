@@ -1,9 +1,6 @@
 {
-    "name": "ZHA Lock Manager",
-    "render_readme": true,
-    "content_in_root": false,
-    "filename": "",
-    "domains": ["integration"],
-    "country": ["ALL"],
-    "zip_release": false
+  "name": "ZHA Lock Manager",
+  "render_readme": true,
+  "homeassistant": "2025.8.0",
+  "hacs": "2.0.0"
 }
