@@ -86,12 +86,10 @@ class ZhaLockManagerPanel extends LitElement {
     }
   }
 
-  async _enableDisable(slot, enable) {
+  async _toggle(slot) {
     const s = this._lock?.slots?.[String(slot)];
     if (!s || !s.has_code) return;
-    if (enable && s.enabled) return;
-    if (!enable && !s.enabled) return;
-
+    const enable = !s.enabled;
     try {
       this._busy = true;
       const type = enable ? "zlm/enable_code" : "zlm/disable_code";
@@ -137,7 +135,7 @@ class ZhaLockManagerPanel extends LitElement {
     }
   }
 
-  /* Desktop slots table */
+  /* Desktop slots table, column order: Slot, Status, Name, Actions */
   _renderSlotsDesktop(lock) {
     return html`
       <div class="card">
@@ -145,81 +143,89 @@ class ZhaLockManagerPanel extends LitElement {
         <table class="slots">
           <thead>
             <tr>
-              <th class="col-num">#</th>
-              <th class="col-label">Label</th>
+              <th class="col-num">Slot</th>
               <th class="col-status">Status</th>
+              <th class="col-label">Name</th>
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
-            ${this._slotRows(lock).map(
-              (s) => html`
+            ${this._slotRows(lock).map((s) => {
+              const status = s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty";
+              const toggleLabel = s.enabled ? "Disable" : "Enable";
+              return html`
                 <tr>
                   <td>${s.slot}</td>
+                  <td>${status}</td>
                   <td>${s.label || ""}</td>
-                  <td>${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}</td>
                   <td class="col-actions">
-                    <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
-                    <ha-button
-                      @click=${() => this._enableDisable(s.slot, true)}
-                      ?disabled=${this._busy || !s.has_code || s.enabled}
-                      >Enable</ha-button
-                    >
-                    <ha-button
-                      @click=${() => this._enableDisable(s.slot, false)}
-                      ?disabled=${this._busy || !s.has_code || !s.enabled}
-                      >Disable</ha-button
-                    >
-                    <ha-button @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}
-                      >Clear</ha-button
-                    >
+                    <div class="btn-grid">
+                      <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>
+                        Set
+                      </ha-button>
+                      <ha-button
+                        class="action"
+                        @click=${() => this._toggle(s.slot)}
+                        ?disabled=${this._busy || !s.has_code}
+                      >
+                        ${toggleLabel}
+                      </ha-button>
+                      <ha-button
+                        class="action"
+                        @click=${() => this._clear(s.slot)}
+                        ?disabled=${this._busy || !s.has_code}
+                      >
+                        Clear
+                      </ha-button>
+                    </div>
                   </td>
                 </tr>
-              `
-            )}
+              `;
+            })}
           </tbody>
         </table>
       </div>
     `;
   }
 
-  /* Mobile stacked layout, actions on a second row */
+  /* Mobile stacked layout, texts centered above equal-width buttons */
   _renderSlotsMobile(lock) {
     return html`
       <div class="card">
         <h3>Slots</h3>
         <div class="mobile-slots">
-          ${this._slotRows(lock).map(
-            (s) => html`
+          ${this._slotRows(lock).map((s) => {
+            const status = s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty";
+            const toggleLabel = s.enabled ? "Disable" : "Enable";
+            return html`
               <div class="mrow">
                 <div class="mhead">
-                  <div class="mnum">#${s.slot}</div>
-                  <div class="mlabel">${s.label || ""}</div>
-                  <div class="mstatus">
-                    ${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}
-                  </div>
+                  <div class="mcell mnum">#${s.slot}</div>
+                  <div class="mcell mstatus">${status}</div>
+                  <div class="mcell mlabel">${s.label || ""}</div>
                 </div>
-                <div class="mactions">
-                  <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                <div class="mactions btn-grid">
+                  <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>
+                    Set
+                  </ha-button>
                   <ha-button
-                    @click=${() => this._enableDisable(s.slot, true)}
-                    ?disabled=${this._busy || !s.has_code || s.enabled}
-                    >Enable</ha-button
+                    class="action"
+                    @click=${() => this._toggle(s.slot)}
+                    ?disabled=${this._busy || !s.has_code}
                   >
+                    ${toggleLabel}
+                  </ha-button>
                   <ha-button
-                    @click=${() => this._enableDisable(s.slot, false)}
-                    ?disabled=${this._busy || !s.has_code || !s.enabled}
-                    >Disable</ha-button
-                  >
-                  <ha-button
+                    class="action"
                     @click=${() => this._clear(s.slot)}
                     ?disabled=${this._busy || !s.has_code}
-                    >Clear</ha-button
                   >
+                    Clear
+                  </ha-button>
                 </div>
               </div>
-            `
-          )}
+            `;
+          })}
         </div>
       </div>
     `;
@@ -230,10 +236,10 @@ class ZhaLockManagerPanel extends LitElement {
     return html`
       <ha-app-layout>
         <app-header slot="header" fixed>
-          <app-toolbar>
+          <app-toolbar class="topbar">
             <ha-menu-button .hass=${this.hass} .narrow=${this.isMobile}></ha-menu-button>
-            <div main-title>🗝️ ZHA Lock Manager</div>
-            <ha-button @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
+            <div class="title" main-title>🗝️ ZHA Lock Manager</div>
+            <ha-button class="refresh" @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
           </app-toolbar>
         </app-header>
 
@@ -291,7 +297,12 @@ class ZhaLockManagerPanel extends LitElement {
     return css`
       :host { display: block; }
 
-      /* Layout and header */
+      /* Header */
+      .topbar { padding: 0 8px; }
+      .title { font-size: 24px; font-weight: 700; margin-left: 8px; }
+      .refresh { margin-left: auto; } /* push to right */
+
+      /* Layout */
       .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
       .cols { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
       .cols.one { grid-template-columns: 1fr; }
@@ -306,25 +317,27 @@ class ZhaLockManagerPanel extends LitElement {
       .name { font-weight: 600; }
       .sub { font-size: 12px; opacity: 0.7; }
 
-      /* Meta form */
-      .meta { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; align-items: end; }
+      /* Meta form, make Save align with inputs */
+      .meta { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; align-items: center; }
       .meta label { display: inline-flex; flex-direction: column; }
-      .meta .save { justify-self: start; }
+      .meta input { height: 40px; padding: 6px 8px; }
+      .meta .save { height: 40px; align-self: center; }
 
       /* Desktop table */
       table.slots { width: 100%; border-collapse: collapse; }
       table.slots th, table.slots td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
       table.slots th { text-align: left; }
       table.slots th.col-actions, table.slots td.col-actions { text-align: center; }
-      ha-button { margin-right: 6px; }
+
+      /* Equal width actions: three columns grid */
+      .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .action { width: 100%; }
 
       /* Mobile stacked rows */
       .mobile-slots .mrow { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
-      .mobile-slots .mhead { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
-      .mobile-slots .mnum { font-weight: 600; opacity: 0.8; }
-      .mobile-slots .mlabel { font-weight: 500; }
-      .mobile-slots .mstatus { font-size: 14px; opacity: 0.8; justify-self: end; }
-      .mobile-slots .mactions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .mobile-slots .mhead { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; align-items: center; margin-bottom: 10px; }
+      .mobile-slots .mcell { font-weight: 500; }
+      .mobile-slots .mactions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
       .err { background: #ffebee; color: #b71c1c; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; }
 
