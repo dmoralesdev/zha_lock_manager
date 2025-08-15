@@ -29,7 +29,6 @@ class ZhaLockManagerPanel extends LitElement {
     window.addEventListener("resize", this._onResize);
     this._refresh();
   }
-
   disconnectedCallback() {
     window.removeEventListener("resize", this._onResize);
     super.disconnectedCallback();
@@ -42,7 +41,6 @@ class ZhaLockManagerPanel extends LitElement {
   async _ws(type, payload = {}) {
     return await this.hass.callWS({ type, ...payload });
   }
-
   async _refresh() {
     try {
       this._busy = true;
@@ -135,7 +133,7 @@ class ZhaLockManagerPanel extends LitElement {
     }
   }
 
-  /* Desktop slots table, column order: Slot, Status, Name, Actions */
+  /* Desktop table, order: Slot, Status, Name, Actions */
   _renderSlotsDesktop(lock) {
     return html`
       <div class="card">
@@ -176,7 +174,7 @@ class ZhaLockManagerPanel extends LitElement {
     `;
   }
 
-  /* Mobile stacked layout, texts centered above equal width buttons */
+  /* Mobile stacked, texts centered above equal width buttons */
   _renderSlotsMobile(lock) {
     return html`
       <div class="card">
@@ -212,8 +210,12 @@ class ZhaLockManagerPanel extends LitElement {
     return html`
       <ha-app-layout>
         <app-header slot="header" fixed>
-          <app-toolbar class="topbar">
+          <!-- Row 1: hamburger only -->
+          <app-toolbar class="menubar">
             <ha-menu-button .hass=${this.hass} .narrow=${this.isMobile}></ha-menu-button>
+          </app-toolbar>
+          <!-- Row 2: title left, refresh right -->
+          <app-toolbar class="titlebar">
             <div class="title" main-title>🗝️ ZHA Lock Manager</div>
             <ha-button class="refresh" @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
           </app-toolbar>
@@ -250,12 +252,22 @@ class ZhaLockManagerPanel extends LitElement {
                     <div class="card">
                       <h3>Lock: ${lock.name}</h3>
                       <div class="meta">
-                        <label>Name <input id="name" .value=${lock.name} /></label>
-                        <label>Max slots
+                        <div class="field">
+                          <div class="cap">Name</div>
+                          <input id="name" .value=${lock.name} />
+                        </div>
+                        <div class="field">
+                          <div class="cap">Max slots</div>
                           <input id="max" type="number" min="1" max="250" .value=${String(lock.max_slots || 30)} />
-                        </label>
-                        <label>Slot offset <input id="offset" type="number" .value=${String(lock.slot_offset || 0)} /></label>
-                        <ha-button class="save" @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
+                        </div>
+                        <div class="field">
+                          <div class="cap">Slot offset</div>
+                          <input id="offset" type="number" .value=${String(lock.slot_offset || 0)} />
+                        </div>
+                        <div class="field save-wrap">
+                          <div class="cap">&nbsp;</div>
+                          <ha-button class="save" @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
+                        </div>
                       </div>
                     </div>
 
@@ -274,28 +286,24 @@ class ZhaLockManagerPanel extends LitElement {
       :host { display: block; }
       :host { --zlm-control-height: 44px; }
 
-      /* Header always single row: no wrap, title left, button right */
-      .topbar {
+      /* Header split into two toolbars */
+      .menubar { min-height: 56px; padding: 0 8px; }
+      .titlebar {
+        min-height: 56px;
+        padding: 0 8px;
         display: flex;
         align-items: center;
         gap: 8px;
-        flex-wrap: nowrap;
-        padding: 0 8px;
       }
       .title {
         font-size: 24px;
         font-weight: 700;
-        margin-left: 8px;
-        flex: 1 1 auto;      /* take remaining space */
-        white-space: nowrap; /* keep on one line */
+        flex: 1 1 auto;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .refresh {
-        margin-left: auto;    /* push right */
-        flex: 0 0 auto;       /* do not shrink */
-        white-space: nowrap;  /* keep on one line */
-      }
+      .refresh { margin-left: auto; white-space: nowrap; }
 
       /* Layout */
       .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
@@ -312,22 +320,22 @@ class ZhaLockManagerPanel extends LitElement {
       .name { font-weight: 600; }
       .sub { font-size: 12px; opacity: 0.7; }
 
-      /* Meta form, inputs and Save share same height, Save centered */
+      /* Meta form, 4 columns, two-row fields with caption and control */
       .meta {
         display: grid;
         grid-template-columns: repeat(4, minmax(120px, 1fr));
         gap: 12px;
-        align-items: center; /* vertical align inputs and button */
+        align-items: center;
       }
-      .meta label { display: inline-flex; flex-direction: column; }
-      .meta input { height: var(--zlm-control-height); padding: 6px 8px; }
-      .meta .save {
+      .field { display: flex; flex-direction: column; justify-content: center; }
+      .cap { font-size: 0.92rem; margin-bottom: 6px; opacity: 0.9; }
+      .field input { height: var(--zlm-control-height); padding: 6px 8px; }
+      .save-wrap { display: flex; flex-direction: column; justify-content: center; }
+      .save {
         height: var(--zlm-control-height);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        margin: 0;             /* remove stray margins */
-        align-self: center;    /* vertical center in grid cell */
       }
 
       /* Desktop table */
@@ -336,19 +344,17 @@ class ZhaLockManagerPanel extends LitElement {
       table.slots th { text-align: left; }
       table.slots th.col-actions, table.slots td.col-actions { text-align: center; }
 
-      /* Equal width actions: three columns grid */
+      /* Equal width actions */
       .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
       .action { width: 100%; }
 
-      /* Mobile stacked rows */
+      /* Mobile list */
       .mobile-slots .mrow { padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
       .mobile-slots .mhead { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; align-items: center; margin-bottom: 10px; }
-      .mobile-slots .mcell { font-weight: 500; }
       .mobile-slots .mactions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
       .err { background: #ffebee; color: #b71c1c; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; }
 
-      /* Responsive tweaks */
       @media (max-width: 980px) {
         .meta { grid-template-columns: 1fr 1fr; }
       }
