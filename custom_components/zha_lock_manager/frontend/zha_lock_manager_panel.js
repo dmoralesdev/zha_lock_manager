@@ -160,23 +160,11 @@ class ZhaLockManagerPanel extends LitElement {
                   <td>${s.label || ""}</td>
                   <td class="col-actions">
                     <div class="btn-grid">
-                      <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>
-                        Set
-                      </ha-button>
-                      <ha-button
-                        class="action"
-                        @click=${() => this._toggle(s.slot)}
-                        ?disabled=${this._busy || !s.has_code}
-                      >
+                      <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                      <ha-button class="action" @click=${() => this._toggle(s.slot)} ?disabled=${this._busy || !s.has_code}>
                         ${toggleLabel}
                       </ha-button>
-                      <ha-button
-                        class="action"
-                        @click=${() => this._clear(s.slot)}
-                        ?disabled=${this._busy || !s.has_code}
-                      >
-                        Clear
-                      </ha-button>
+                      <ha-button class="action" @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}>Clear</ha-button>
                     </div>
                   </td>
                 </tr>
@@ -188,7 +176,7 @@ class ZhaLockManagerPanel extends LitElement {
     `;
   }
 
-  /* Mobile stacked layout, texts centered above equal-width buttons */
+  /* Mobile stacked layout, texts centered above equal width buttons */
   _renderSlotsMobile(lock) {
     return html`
       <div class="card">
@@ -205,23 +193,11 @@ class ZhaLockManagerPanel extends LitElement {
                   <div class="mcell mlabel">${s.label || ""}</div>
                 </div>
                 <div class="mactions btn-grid">
-                  <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>
-                    Set
-                  </ha-button>
-                  <ha-button
-                    class="action"
-                    @click=${() => this._toggle(s.slot)}
-                    ?disabled=${this._busy || !s.has_code}
-                  >
+                  <ha-button class="action" @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                  <ha-button class="action" @click=${() => this._toggle(s.slot)} ?disabled=${this._busy || !s.has_code}>
                     ${toggleLabel}
                   </ha-button>
-                  <ha-button
-                    class="action"
-                    @click=${() => this._clear(s.slot)}
-                    ?disabled=${this._busy || !s.has_code}
-                  >
-                    Clear
-                  </ha-button>
+                  <ha-button class="action" @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}>Clear</ha-button>
                 </div>
               </div>
             `;
@@ -296,11 +272,30 @@ class ZhaLockManagerPanel extends LitElement {
   static get styles() {
     return css`
       :host { display: block; }
+      :host { --zlm-control-height: 44px; }
 
-      /* Header */
-      .topbar { padding: 0 8px; }
-      .title { font-size: 24px; font-weight: 700; margin-left: 8px; }
-      .refresh { margin-left: auto; } /* push to right */
+      /* Header always single row: no wrap, title left, button right */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: nowrap;
+        padding: 0 8px;
+      }
+      .title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-left: 8px;
+        flex: 1 1 auto;      /* take remaining space */
+        white-space: nowrap; /* keep on one line */
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .refresh {
+        margin-left: auto;    /* push right */
+        flex: 0 0 auto;       /* do not shrink */
+        white-space: nowrap;  /* keep on one line */
+      }
 
       /* Layout */
       .wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
@@ -317,11 +312,23 @@ class ZhaLockManagerPanel extends LitElement {
       .name { font-weight: 600; }
       .sub { font-size: 12px; opacity: 0.7; }
 
-      /* Meta form, make Save align with inputs */
-      .meta { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 12px; align-items: center; }
+      /* Meta form, inputs and Save share same height, Save centered */
+      .meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(120px, 1fr));
+        gap: 12px;
+        align-items: center; /* vertical align inputs and button */
+      }
       .meta label { display: inline-flex; flex-direction: column; }
-      .meta input { height: 40px; padding: 6px 8px; }
-      .meta .save { height: 40px; align-self: center; }
+      .meta input { height: var(--zlm-control-height); padding: 6px 8px; }
+      .meta .save {
+        height: var(--zlm-control-height);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;             /* remove stray margins */
+        align-self: center;    /* vertical center in grid cell */
+      }
 
       /* Desktop table */
       table.slots { width: 100%; border-collapse: collapse; }
