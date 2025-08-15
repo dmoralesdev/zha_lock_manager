@@ -1,10 +1,17 @@
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://brands.home-assistant.io/zha_lock_manager/dark_icon.png">
+    <img alt="ZHA Lock Manager icon" src="https://brands.home-assistant.io/zha_lock_manager/icon.png" width="44" height="44" style="vertical-align: middle;">
+  </picture>
+  <span style="vertical-align: middle;">ZHA Lock Manager</span>
+</h1>
 # ZHA Lock Manager
 
 Manage keypad codes for Zigbee locks on Home Assistant through ZHA.  
 Includes a simple side panel to view and edit codes, per lock settings, and an optional global Alarmo integration that disarms on successful keypad unlock.
 
 <p align="center">
-  <img src="custom_components\zha_lock_manager\frontend\zha_lock_manager.png" alt="Zigbee Locks side panel screenshot" width="646">
+  <img src="https://raw.githubusercontent.com/dmoralesdev/zha_lock_manager/main/custom_components/zha_lock_manager/frontend/zha_lock_manager.png" alt="Zigbee Locks side panel screenshot" width="646">
 </p>
 
 ## Requirements
