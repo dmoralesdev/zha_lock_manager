@@ -5,7 +5,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import config_validation as cv
 from homeassistant.components.frontend import async_remove_panel
 
 from .const import (
