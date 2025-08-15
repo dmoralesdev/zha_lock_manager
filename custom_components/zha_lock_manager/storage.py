@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -69,6 +69,7 @@ class ZLMLocalStore:
         if not data:
             self.locks = {}
             return
+
         self.locks = {}
         for ieee, raw in data.get("locks", {}).items():
             slots: Dict[int, Slot] = {}
@@ -127,9 +128,12 @@ class ZLMLocalStore:
         s.code_encrypted = self.crypto.encrypt(code)
 
     def clear_code(self, lock: Lock, slot: int) -> None:
+        """Clear code and metadata for a slot."""
         if slot in lock.slots:
-            lock.slots[slot].code_encrypted = None
-            lock.slots[slot].enabled = False
+            s = lock.slots[slot]
+            s.code_encrypted = None
+            s.enabled = False
+            s.label = ""  # fix: also clear label so the UI shows Empty with no name
 
     def get_plain_code(self, lock: Lock, slot: int) -> Optional[str]:
         assert self.crypto

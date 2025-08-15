@@ -1,41 +1,129 @@
-A lightweight Home Assistant custom integration to manage **Zigbee door lock user codes** using **ZHA** — with a built-in **sidebar panel** for UI management and an **optional Alarmo hook** to disarm when a valid keypad/RF code is used.
+# ZHA Lock Manager
 
-## Features
-
-- Manage multiple Zigbee locks (ZHA) from a dedicated sidebar panel
-- Add/enable/disable/clear codes via ZHA services
-- Encrypted at rest using Fernet (cryptography)
-- Local store of assigned slots & labels (acts as source of truth)
-- Optional **Alarmo** integration: on unlock-by-code, look up the slot, decrypt the code, and call `alarm_control_panel.alarm_disarm`
-- Per-lock **slot offset** to handle devices that report slot numbers off-by-one
+Manage keypad codes for Zigbee locks on Home Assistant through ZHA.  
+Includes a simple side panel to view and edit codes, per lock settings, and an optional global Alarmo integration that disarms on successful keypad or RF unlock.
 
 ## Requirements
 
-- Home Assistant 2024.7+
-- ZHA integration with at least one Zigbee lock entity
-- (Optional) Alarmo integration and an alarm entity (e.g. `alarm_control_panel.alarmo`)
+- Home Assistant 2025.8 or newer  
+- ZHA integration with your lock entities available  
+- HACS for easy install, or manual copy to `config/custom_components/zha_lock_manager`
 
-## Installation (via HACS)
+## What this integration provides
 
-1. In HACS → Integrations → **Custom repositories** → Add this repo URL as type **Integration**.
-2. Install **ZHA Lock Manager**.
-3. Restart Home Assistant.
-4. Go to **Settings → Devices & services → Add Integration → ZHA Lock Manager**.
-5. Select your ZHA lock(s).
-6. Open the **Zigbee Locks** sidebar tab to manage codes.
-7. (Optional) In **Integration Options**, enable *Alarmo integration* and set your `alarm_control_panel` entity.
+- A Home Assistant integration entry with a config flow  
+- A side panel named **Zigbee Locks** for daily code management  
+- Support for multiple locks, selectable at install time and later from Options  
+- Per lock settings managed in the panel:
+  - Name
+  - Max slots
+  - Slot offset
+- Code management actions per slot:
+  - Set code
+  - Enable code
+  - Disable code
+  - Clear code
+- Optional global Alarmo hook:
+  - On ZHA unlock from Keypad or RF, the integration looks up the matching code and calls `alarm_control_panel.alarm_disarm` with that code
 
-## Notes & Limitations
+## How it works
 
-- The integration assumes you manage codes **only** from this UI. Manual changes via Developer Tools or other automations won’t be seen.
-- Some lock models report event **code_slot** shifted by 1; use *slot offset* in options to correct mapping.
-- Codes are encrypted at rest (Fernet). The symmetric key is generated and stored privately under `.storage`.
+### ZHA lock codes
+- Codes are sent to the lock through ZHA services when you operate the panel using the below methods:
+  - `zha.set_lock_user_code`
+  - `zha.enable_lock_user_code`
+  - `zha.disable_lock_user_code`
+  - `zha.clear_lock_user_code`
 
-## Uninstall
+### Alarmo integration
+- The integration listens to `zha_event` and filters for:
+  - `command: operation_event_notification`
+  - `args.operation: Unlock`
+  - `args.source: Keypad` or `RF`
+- When a keypad or RF unlock occurs, it:
+  - Finds the lock by IEEE
+  - Applies the `slot_offset` to the reported `code_slot`
+  - Decrypts the stored code for that slot
+  - If Alarmo is enabled, calls `alarm_control_panel.alarm_disarm` (or your specified Alarmo entity name) with the code
 
-- Remove the integration from Settings → Devices & Services.
-- Delete the HACS repository.
+## Installation
+
+### HACS
+
+1. In HACS, add this repository, then install **ZHA Lock Manager**.
+2. Restart Home Assistant.
+
+### Manual
+
+1. Copy `custom_components/zha_lock_manager` into your HA `config/custom_components` folder.
+2. Restart Home Assistant.
+
+## Setup
+
+1. Go to **Settings**, **Devices and services**, **Integrations**.
+2. Click **Add integration**, search for **ZHA Lock Manager**.
+3. Select one or more ZHA lock entities to manage. You can add or remove locks later in Options.
+4. Finish the flow. A **Zigbee Locks** sidebar panel will appear.
+
+## Options
+
+Open **Settings → Devices and services → ZHA Lock Manager → Configure**.
+
+- **Locks**: pick which ZHA locks this integration manages. You can add or remove locks at any time.  
+- **Enable Alarmo integration**: enable the global Alarmo hook.  
+- **Alarmo entity_id**: set your `alarm_control_panel` entity.
+
+Saving Options reloads the entry, updates the local store to match the selection, and refreshes the panel.
+
+## The side panel
+
+Open the **Zigbee Locks** panel from the sidebar.
+
+- **Left column**: list of managed locks.  
+- **Right column**:
+  - Per lock metadata: **Name**, **Max slots**, **Slot offset**, **Save**.  
+  - **Slots** table:
+    - **Status** shows Empty, Enabled, or Disabled
+    - **Set** prompts for a code and optional label, then programs the lock and stores the encrypted code
+    - **Enable** is active only when the slot has a code and is currently Disabled
+    - **Disable** is active only when the slot has a code and is currently Enabled
+    - **Clear** removes the code on the lock and clears label and status in the store
+
+### Per lock fields
+
+- **Max slots**: how many numeric slots you want to manage in the panel. This does not change the lock hardware limit.  
+- **Slot offset**: offset to apply when talking to the lock. Set this if your lock reports a `code_slot` that is shifted from the numbers you prefer to see in the UI.
+
+## Data storage and security
+
+- Codes are stored encrypted using a Fernet key that is generated on first load and saved in HA storage.  
+- Encryption and data files are under `.storage` with private access enabled.  
+- Removing a code from a slot clears the encrypted token, sets the slot to Disabled, and clears the label.  
+- Removing the integration wipes all stored data and the encryption key, and removes the panel.
+
+## Uninstall behavior
+
+- Deleting the integration entry removes the sidebar panel and unsubscribes event listeners.  
+- Stored lock data and the encryption key are deleted.  
+- Reinstalling starts with an empty list of locks.
+
+## Troubleshooting
+
+- **Alarmo does not disarm on keypad unlock**  
+  - Confirm the code exists in the manager for that slot, and that `slot_offset` is correct.  
+  - Confirm **Enable Alarmo integration** is checked in Options and the `alarm_control_panel` entity is valid.  
+  - The disarm hook only fires for `source: Keypad` or `RF`.
+
+## Known limitations
+
+- The panel does not pull existing codes from the lock at install time. It manages codes that you set through the panel.  
+- Some lock models enforce timing or rate limits on code changes. If a service call fails, retry after a short delay.  
+- Max slots is a UI limit. Your lock may support fewer or more slots. Use a value that matches your hardware.
+
+## Contributing
+
+Bug reports and pull requests are welcome.  
+Please include your Home Assistant version, a description of the lock model, and clear steps to reproduce.
 
 ## License
-
 MIT
