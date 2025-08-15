@@ -31,7 +31,7 @@ class ZhaLockManagerPanel extends LitElement {
     this._refresh();
   }
 
-  async _ws(type, payload={}) {
+  async _ws(type, payload = {}) {
     return await this.hass.callWS({ type, ...payload });
   }
 
@@ -49,13 +49,13 @@ class ZhaLockManagerPanel extends LitElement {
 
   get _lock() {
     if (!this._locks?.length) return null;
-    return this._locks[Math.min(this._selected, this._locks.length-1)];
+    return this._locks[Math.min(this._selected, this._locks.length - 1)];
   }
 
   _slotRows(lock) {
     const rows = [];
     const max = lock.max_slots ?? 30;
-    for (let i=1; i<=max; i++) {
+    for (let i = 1; i <= max; i++) {
       const key = String(i);
       const s = lock.slots?.[key] || { slot: i, label: "", enabled: false, has_code: false };
       rows.push(s);
@@ -71,18 +71,30 @@ class ZhaLockManagerPanel extends LitElement {
       this._busy = true;
       await this._ws("zlm/set_code", { device_ieee: this._lock.device_ieee, slot, code, label });
       await this._refresh();
-    } catch(e) { alert("Failed: " + e); }
-    finally { this._busy = false; }
+    } catch (e) {
+      alert("Failed: " + e);
+    } finally {
+      this._busy = false;
+    }
   }
 
   async _enableDisable(slot, enable) {
+    // Extra guard so clicks cannot fire in the wrong state even if the button is not disabled for some reason
+    const s = this._lock?.slots?.[String(slot)];
+    if (!s || !s.has_code) return;
+    if (enable && s.enabled) return;
+    if (!enable && !s.enabled) return;
+
     try {
       this._busy = true;
       const type = enable ? "zlm/enable_code" : "zlm/disable_code";
       await this._ws(type, { device_ieee: this._lock.device_ieee, slot });
       await this._refresh();
-    } catch(e) { alert("Failed: " + e); }
-    finally { this._busy = false; }
+    } catch (e) {
+      alert("Failed: " + e);
+    } finally {
+      this._busy = false;
+    }
   }
 
   async _clear(slot) {
@@ -91,8 +103,11 @@ class ZhaLockManagerPanel extends LitElement {
       this._busy = true;
       await this._ws("zlm/clear_code", { device_ieee: this._lock.device_ieee, slot });
       await this._refresh();
-    } catch(e) { alert("Failed: " + e); }
-    finally { this._busy = false; }
+    } catch (e) {
+      alert("Failed: " + e);
+    } finally {
+      this._busy = false;
+    }
   }
 
   async _saveMeta() {
@@ -101,10 +116,18 @@ class ZhaLockManagerPanel extends LitElement {
     const slot_offset = parseInt(this.renderRoot.querySelector("#offset").value || "0");
     try {
       this._busy = true;
-      await this._ws("zlm/save_lock_meta", { device_ieee: this._lock.device_ieee, name, max_slots, slot_offset });
+      await this._ws("zlm/save_lock_meta", {
+        device_ieee: this._lock.device_ieee,
+        name,
+        max_slots,
+        slot_offset,
+      });
       await this._refresh();
-    } catch(e) { alert("Failed: " + e); }
-    finally { this._busy = false; }
+    } catch (e) {
+      alert("Failed: " + e);
+    } finally {
+      this._busy = false;
+    }
   }
 
   render() {
@@ -121,48 +144,72 @@ class ZhaLockManagerPanel extends LitElement {
             <div class="card">
               <h3>Locks</h3>
               <ul class="list">
-                ${this._locks.map((l, idx) => html`
-                  <li class="${idx===this._selected? 'sel': ''}" @click=${() => { this._selected = idx; this.requestUpdate(); }}>
-                    <div class="name">${l.name}</div>
-                    <div class="sub">${l.entity_id} · ${l.device_ieee}</div>
-                  </li>
-                `)}
+                ${this._locks.map(
+                  (l, idx) => html`
+                    <li class="${idx === this._selected ? "sel" : ""}" @click=${() => { this._selected = idx; this.requestUpdate(); }}>
+                      <div class="name">${l.name}</div>
+                      <div class="sub">${l.entity_id} · ${l.device_ieee}</div>
+                    </li>
+                  `
+                )}
               </ul>
             </div>
           </div>
           <div class="right">
-            ${lock ? html`
-              <div class="card">
-                <h3>Lock: ${lock.name}</h3>
-                <div class="meta">
-                  <label>Name <input id="name" .value=${lock.name}></label>
-                  <label>Max slots <input id="max" type="number" min="1" max="250" .value=${String(lock.max_slots||30)}></label>
-                  <label>Slot offset <input id="offset" type="number" .value=${String(lock.slot_offset||0)}></label>
-                  <ha-button @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
-                </div>
-              </div>
-              <div class="card">
-                <h3>Slots</h3>
-                <table class="slots">
-                  <thead><tr><th>#</th><th>Label</th><th>Status</th><th>Actions</th></tr></thead>
-                  <tbody>
-                    ${this._slotRows(lock).map((s) => html`
-                      <tr>
-                        <td>${s.slot}</td>
-                        <td>${s.label||''}</td>
-                        <td>${s.has_code ? (s.enabled ? 'Enabled' : 'Disabled') : 'Empty'}</td>
-                        <td>
-                          <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
-                          <ha-button @click=${() => this._enableDisable(s.slot, true)} ?disabled=${this._busy || !s.has_code}>Enable</ha-button>
-                          <ha-button @click=${() => this._enableDisable(s.slot, false)} ?disabled=${this._busy || !s.has_code}>Disable</ha-button>
-                          <ha-button @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}>Clear</ha-button>
-                        </td>
-                      </tr>
-                    `)}
-                  </tbody>
-                </table>
-              </div>
-            ` : html`<div class="card">No locks configured in integration options.</div>`}
+            ${lock
+              ? html`
+                  <div class="card">
+                    <h3>Lock: ${lock.name}</h3>
+                    <div class="meta">
+                      <label>Name <input id="name" .value=${lock.name} /></label>
+                      <label>Max slots <input id="max" type="number" min="1" max="250" .value=${String(lock.max_slots || 30)} /></label>
+                      <label>Slot offset <input id="offset" type="number" .value=${String(lock.slot_offset || 0)} /></label>
+                      <ha-button @click=${() => this._saveMeta()} ?disabled=${this._busy}>Save</ha-button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <h3>Slots</h3>
+                    <table class="slots">
+                      <thead>
+                        <tr>
+                          <th class="col-num">#</th>
+                          <th class="col-label">Label</th>
+                          <th class="col-status">Status</th>
+                          <th class="col-actions">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${this._slotRows(lock).map(
+                          (s) => html`
+                            <tr>
+                              <td>${s.slot}</td>
+                              <td>${s.label || ""}</td>
+                              <td>${s.has_code ? (s.enabled ? "Enabled" : "Disabled") : "Empty"}</td>
+                              <td class="col-actions">
+                                <ha-button @click=${() => this._setCode(s.slot)} ?disabled=${this._busy}>Set</ha-button>
+                                <ha-button
+                                  @click=${() => this._enableDisable(s.slot, true)}
+                                  ?disabled=${this._busy || !s.has_code || s.enabled}
+                                  >Enable</ha-button
+                                >
+                                <ha-button
+                                  @click=${() => this._enableDisable(s.slot, false)}
+                                  ?disabled=${this._busy || !s.has_code || !s.enabled}
+                                  >Disable</ha-button
+                                >
+                                <ha-button @click=${() => this._clear(s.slot)} ?disabled=${this._busy || !s.has_code}
+                                  >Clear</ha-button
+                                >
+                              </td>
+                            </tr>
+                          `
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                `
+              : html`<div class="card">No locks configured in integration options.</div>`}
           </div>
         </div>
       </div>
@@ -171,11 +218,11 @@ class ZhaLockManagerPanel extends LitElement {
 
   static get styles() {
     return css`
-      :host { display:block; padding:16px; }
+      :host { display: block; padding: 16px; }
       .wrap { max-width: 1200px; margin: 0 auto; }
-      .header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; }
+      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
       .cols { display: grid; grid-template-columns: 320px 1fr; gap: 16px; }
-      .card { background: var(--card-background-color); border-radius: 16px; padding: 16px; box-shadow: var(--ha-card-box-shadow, 0 2px 6px rgba(0,0,0,0.12)); }
+      .card { background: var(--card-background-color); border-radius: 16px; padding: 16px; box-shadow: var(--ha-card-box-shadow, 0 2px 6px rgba(0,0,0,0.12)); margin-bottom: 10px; }
       h3 { margin: 0 0 12px; }
       ul.list { list-style: none; margin: 0; padding: 0; }
       ul.list li { padding: 10px; border-radius: 12px; cursor: pointer; }
@@ -186,15 +233,17 @@ class ZhaLockManagerPanel extends LitElement {
       .meta label { display: inline-flex; flex-direction: column; margin-right: 12px; }
       table.slots { width: 100%; border-collapse: collapse; }
       table.slots th, table.slots td { padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+      /* Align headers as requested */
+      table.slots th { text-align: left; }
+      table.slots th.col-actions, table.slots td.col-actions { text-align: center; }
       ha-button { margin-right: 6px; }
-      .err { background:#ffebee; color:#b71c1c; padding:8px 12px; border-radius:12px; margin-bottom:8px; }
+      .err { background: #ffebee; color: #b71c1c; padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; }
       @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
     `;
   }
 }
 
 customElements.define("zha-lock-manager-panel", ZhaLockManagerPanel);
-
 
 // Expose a dummy class name to satisfy panel registration
 export default ZhaLockManagerPanel;
