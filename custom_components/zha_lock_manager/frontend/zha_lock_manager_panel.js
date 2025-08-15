@@ -217,13 +217,11 @@ class ZhaLockManagerPanel extends LitElement {
           <!-- Row 2: title left, refresh right -->
           <app-toolbar class="titlebar">
             <div class="title" main-title>
-              <h1>
-                <picture>
-                  <source media="(prefers-color-scheme: dark)" srcset="https://brands.home-assistant.io/zha_lock_manager/dark_icon.png">
-                  <img alt="ZHA Lock Manager icon" src="https://brands.home-assistant.io/zha_lock_manager/icon.png" width="44" height="44" style="vertical-align: bottom;">
-                </picture>
-                <span style="vertical-align: bottom;">ZHA Lock Manager</span>
-              </h1>
+              <!-- Light mode -->
+              <img src="https://brands.home-assistant.io/zha_lock_manager/icon.png#gh-light-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
+              <!-- Dark mode -->
+              <img src="https://brands.home-assistant.io/zha_lock_manager/dark_icon.png#gh-dark-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
+              ZHA Lock Manager
             </div>
             <ha-button class="refresh" @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
           </app-toolbar>
