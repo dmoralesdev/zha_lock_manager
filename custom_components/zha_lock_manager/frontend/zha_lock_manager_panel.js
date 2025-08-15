@@ -58,6 +58,14 @@ class ZhaLockManagerPanel extends LitElement {
     return this._locks[Math.min(this._selected, this._locks.length - 1)];
   }
 
+  get _brandIcon() {
+    const dark = this.hass?.themes?.darkMode;
+    // You can append ?v=commit if you are still waiting on CDN cache turnover
+    return dark
+      ? "https://brands.home-assistant.io/zha_lock_manager/dark_icon.png"
+      : "https://brands.home-assistant.io/zha_lock_manager/icon.png";
+  }
+
   _slotRows(lock) {
     const rows = [];
     const max = lock.max_slots ?? 30;
@@ -216,13 +224,8 @@ class ZhaLockManagerPanel extends LitElement {
           </app-toolbar>
           <!-- Row 2: title left, refresh right -->
           <app-toolbar class="titlebar">
-            <div class="title" main-title>
-              <!-- Light mode -->
-              <img src="https://brands.home-assistant.io/zha_lock_manager/icon.png#gh-light-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
-              <!-- Dark mode -->
-              <img src="https://brands.home-assistant.io/zha_lock_manager/dark_icon.png#gh-dark-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
-              ZHA Lock Manager
-            </div>
+            <img class="brand" src=${this._brandIcon} alt="ZHA Lock Manager icon" />
+            <div class="title" main-title>ZHA Lock Manager</div>
             <ha-button class="refresh" @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
           </app-toolbar>
         </app-header>
@@ -294,21 +297,9 @@ class ZhaLockManagerPanel extends LitElement {
 
       /* Header split into two toolbars */
       .menubar { min-height: 56px; padding: 0 8px; }
-      .titlebar {
-        min-height: 56px;
-        padding: 0 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .title {
-        font-size: 24px;
-        font-weight: 700;
-        flex: 1 1 auto;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
+      .titlebar { min-height: 56px; padding: 0 20px; display: flex; align-items: center; gap: 8px; }
+      .brand { width: 44px; height: 44px; border-radius: 6px; flex: 0 0 auto; margin-bottom: 12px; }
+      .title { font-size: 24px; font-weight: 700; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .refresh { margin-left: auto; white-space: nowrap; }
 
       /* Layout */

@@ -1,8 +1,3 @@
-<!-- Light mode -->
-<img src="https://brands.home-assistant.io/zha_lock_manager/icon.png#gh-light-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
-
-<!-- Dark mode -->
-<img src="https://brands.home-assistant.io/zha_lock_manager/dark_icon.png#gh-dark-mode-only" alt="ZHA Lock Manager icon" width="44" height="44" style="vertical-align: bottom;"> 
 # ZHA Lock Manager
 
 Manage keypad codes for Zigbee locks on Home Assistant through ZHA.  
