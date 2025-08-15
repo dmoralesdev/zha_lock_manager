@@ -59,7 +59,6 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Pick ZHA lock entities to manage."""
         if user_input is not None:
-            # Convert selected entity_ids to lock dicts
             selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             locks: list[dict[str, Any]] = []
             for entity_id in selected_entities:
@@ -97,7 +96,7 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
         data = self.config_entry.data
         locks: list[dict[str, Any]] = data.get(CONF_LOCKS, [])
 
-        # Build per-lock editable fields (name, max_slots, slot_offset)
+        # Build per-lock editable fields
         fields: dict[Any, Any] = {}
         for idx, l in enumerate(locks):
             fields[vol.Optional(f"name_{idx}", default=l.get("name", ""))] = str
@@ -127,7 +126,7 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
         ] = str
 
         if user_input is not None:
-            # Persist back to entry data and options
+            # Persist lock metadata back to entry.data
             new_locks: list[dict[str, Any]] = []
             idx = 0
             while f"name_{idx}" in user_input:
@@ -144,14 +143,19 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
                 )
                 idx += 1
 
+            # Update only data here
             self.hass.config_entries.async_update_entry(
                 self.config_entry,
                 data={**self.config_entry.data, CONF_LOCKS: new_locks},
-                options={
+            )
+
+            # Return options via async_create_entry so HA persists them
+            return self.async_create_entry(
+                title="ZLM Options",
+                data={
                     CONF_ALARMO_ENABLED: bool(user_input.get(CONF_ALARMO_ENABLED, False)),
                     CONF_ALARMO_ENTITY_ID: user_input.get(CONF_ALARMO_ENTITY_ID, ""),
                 },
             )
-            return self.async_create_entry(title="ZLM Options", data={})
 
         return self.async_show_form(step_id="main", data_schema=vol.Schema(fields))
