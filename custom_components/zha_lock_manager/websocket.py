@@ -200,3 +200,13 @@ def register_ws_handlers(hass: HomeAssistant, store: ZLMLocalStore) -> None:
             lock.slot_offset = int(msg["slot_offset"])
         await store.async_save()
         connection.send_result(msg["id"], _lock_to_dict(lock))
+
+    # After all handler defs inside register_ws_handlers(...)
+    websocket_api.async_register_command(hass, ws_list_locks)
+    websocket_api.async_register_command(hass, ws_get_lock)
+    websocket_api.async_register_command(hass, ws_set_code)
+    websocket_api.async_register_command(hass, ws_enable_code)
+    websocket_api.async_register_command(hass, ws_disable_code)
+    websocket_api.async_register_command(hass, ws_clear_code)
+    websocket_api.async_register_command(hass, ws_rename_code)
+    websocket_api.async_register_command(hass, ws_save_lock_meta)
