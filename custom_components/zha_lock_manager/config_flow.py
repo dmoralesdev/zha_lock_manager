@@ -61,7 +61,7 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return ZLMOptionsFlowHandler()
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        """Initial setup: select the ZHA lock entities to manage."""
+        """Initial setup: select ZHA locks and optional Alarmo support."""
         if user_input is not None:
             selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             locks: list[dict[str, Any]] = []
@@ -70,9 +70,18 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if lock_dict:
                     locks.append(lock_dict)
 
+            alarmo_enabled = bool(user_input.get(CONF_ALARMO_ENABLED, False))
+            alarmo_entity = user_input.get(
+                CONF_ALARMO_ENTITY_ID, "alarm_control_panel.alarmo"
+            )
+
             return self.async_create_entry(
                 title="ZHA Lock Manager",
                 data={CONF_LOCKS: locks},
+                options={
+                    CONF_ALARMO_ENABLED: alarmo_enabled,
+                    CONF_ALARMO_ENTITY_ID: alarmo_entity,
+                },
             )
 
         schema = vol.Schema(
@@ -83,7 +92,13 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         integration="zha",
                         multiple=True,
                     )
-                )
+                ),
+                vol.Optional(CONF_ALARMO_ENABLED, default=False): bool,
+                vol.Optional(
+                    CONF_ALARMO_ENTITY_ID, default="alarm_control_panel.alarmo"
+                ): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="alarm_control_panel")
+                ),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema)
