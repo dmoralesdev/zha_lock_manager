@@ -60,8 +60,11 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Return the options flow handler."""
         return ZLMOptionsFlowHandler()
 
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Initial setup: select ZHA locks and optional Alarmo support."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             locks: list[dict[str, Any]] = []
@@ -71,55 +74,51 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     locks.append(lock_dict)
 
             alarmo_enabled = bool(user_input.get(CONF_ALARMO_ENABLED, False))
-            alarmo_entity = user_input.get(CONF_ALARMO_ENTITY_ID, "")
+            alarmo_entity = user_input.get(CONF_ALARMO_ENTITY_ID)
 
             if alarmo_enabled and not alarmo_entity:
-                schema = vol.Schema(
-                    {
-                        vol.Required(CONF_LOCKS, default=selected_entities): selector.EntitySelector(
-                            selector.EntitySelectorConfig(
-                                domain="lock",
-                                integration="zha",
-                                multiple=True,
-                            )
-                        ),
-                        vol.Required(CONF_ALARMO_ENABLED, default=True): bool,
-                        vol.Required(CONF_ALARMO_ENTITY_ID): selector.EntitySelector(
-                            selector.EntitySelectorConfig(domain="alarm_control_panel")
-                        ),
-                    }
-                )
-                return self.async_show_form(
-                    step_id="user",
-                    data_schema=schema,
-                    errors={CONF_ALARMO_ENTITY_ID: "required"},
+                errors[CONF_ALARMO_ENTITY_ID] = "required"
+            else:
+                return self.async_create_entry(
+                    title="ZHA Lock Manager",
+                    data={CONF_LOCKS: locks},
+                    options={
+                        CONF_ALARMO_ENABLED: alarmo_enabled,
+                        CONF_ALARMO_ENTITY_ID: alarmo_entity or "",
+                    },
                 )
 
-            return self.async_create_entry(
-                title="ZHA Lock Manager",
-                data={CONF_LOCKS: locks},
-                options={
-                    CONF_ALARMO_ENABLED: alarmo_enabled,
-                    CONF_ALARMO_ENTITY_ID: alarmo_entity,
-                },
+        fields: dict[Any, Any] = {
+            vol.Required(
+                CONF_LOCKS,
+                default=(user_input.get(CONF_LOCKS) if user_input else []),
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain="lock",
+                    integration="zha",
+                    multiple=True,
+                )
+            ),
+            vol.Optional(
+                CONF_ALARMO_ENABLED,
+                default=(user_input.get(CONF_ALARMO_ENABLED, False) if user_input else False),
+            ): bool,
+        }
+
+        alarmo_enabled = user_input.get(CONF_ALARMO_ENABLED) if user_input else False
+        if alarmo_enabled or errors:
+            fields[
+                vol.Required(
+                    CONF_ALARMO_ENTITY_ID,
+                    default=user_input.get(CONF_ALARMO_ENTITY_ID) if user_input else None,
+                )
+            ] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="alarm_control_panel")
             )
 
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_LOCKS): selector.EntitySelector(
-                    selector.EntitySelectorConfig(
-                        domain="lock",
-                        integration="zha",
-                        multiple=True,
-                    )
-                ),
-                vol.Optional(CONF_ALARMO_ENABLED, default=False): bool,
-                vol.Optional(CONF_ALARMO_ENTITY_ID): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="alarm_control_panel")
-                ),
-            }
+        return self.async_show_form(
+            step_id="user", data_schema=vol.Schema(fields), errors=errors
         )
-        return self.async_show_form(step_id="user", data_schema=schema)
 
     async def async_step_import(self, user_input: dict[str, Any] | None = None):
         """YAML import path, delegates to user step."""
@@ -135,6 +134,7 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         return await self.async_step_main(user_input)
+
 
     async def async_step_main(self, user_input: dict[str, Any] | None = None):
         # Current stored locks
@@ -158,14 +158,15 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
             ),
             # Global Alarmo settings, apply to all locks
             vol.Optional(CONF_ALARMO_ENABLED, default=alarmo_enabled_default): bool,
-            vol.Optional(CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default): selector.EntitySelector(
-                selector.EntitySelectorConfig(domain="alarm_control_panel")
-            ),
         }
+        if alarmo_enabled_default:
+            fields[vol.Required(CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default)] = selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="alarm_control_panel")
+            )
 
         if user_input is not None:
             alarmo_enabled = bool(user_input.get(CONF_ALARMO_ENABLED, False))
-            alarmo_entity = user_input.get(CONF_ALARMO_ENTITY_ID, "")
+            alarmo_entity = user_input.get(CONF_ALARMO_ENTITY_ID)
             if alarmo_enabled and not alarmo_entity:
                 fields = {
                     vol.Required(CONF_LOCKS, default=user_input.get(CONF_LOCKS, default_entities)): selector.EntitySelector(
@@ -203,7 +204,7 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
                 title="ZLM Options",
                 data={
                     CONF_ALARMO_ENABLED: alarmo_enabled,
-                    CONF_ALARMO_ENTITY_ID: user_input.get(CONF_ALARMO_ENTITY_ID, ""),
+                    CONF_ALARMO_ENTITY_ID: alarmo_entity or "",
                 },
             )
 
