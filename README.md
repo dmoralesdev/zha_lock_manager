@@ -1,10 +1,15 @@
 # ZHA Lock Manager
 
+[![HACS](https://img.shields.io/badge/default-grey?logo=homeassistantcommunitystore&logoColor=white)][hacs-repo]
+[![HACS installs](https://img.shields.io/github/downloads/dmoralesdev/zha_lock_manager/latest/total?label=installs&color=blue)][hacs-repo]
+[![Version](https://img.shields.io/github/v/release/dmoralesdev/zha_lock_manager)][releases]
+![Downloads](https://img.shields.io/github/downloads/dmoralesdev/zha_lock_manager/total)
+
 Manage keypad codes for Zigbee locks on Home Assistant through ZHA.  
 Includes a simple side panel to view and edit codes, per lock settings, and an optional global Alarmo integration that disarms on successful keypad unlock.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dmoralesdev/zha_lock_manager/main/custom_components/zha_lock_manager/frontend/zha_lock_manager.png" alt="Zigbee Locks side panel screenshot" width="646">
+  <img src="https://raw.githubusercontent.com/dmoralesdev/zha_lock_manager/main/custom_components/zha_lock_manager/frontend/zha_lock_manager.png" alt="Zigbee Locks side panel screenshot" width="876">
 </p>
 
 ## Requirements
@@ -14,9 +19,8 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 - HACS for easy install, or manual copy to `config/custom_components/zha_lock_manager`
 
 ## What this integration provides
-
-- A Home Assistant integration entry with a config flow  
-- A side panel named **Zigbee Locks** for daily code management  
+ 
+- A side panel named **Zigbee Locks** for code management  
 - Support for multiple locks, selectable at install time and later from Options  
 - Per lock settings managed in the panel:
   - Name
@@ -54,23 +58,37 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 
 ### HACS
 
-1. In HACS, add this repository, then install **ZHA Lock Manager**.
+Installation through [HACS][hacs] is the preferred installation method.
 
-[![Open your Home Assistant and add this integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=zha_lock_manager)
+[![Open the ZHA Lock Manager integration in HACS][hacs-badge]][hacs-open]
 
-2. Restart Home Assistant.
+1. Click the button above or go to HACS &rarr; Integrations &rarr; search for
+   "ZHA Lock Manager" &rarr; select it.
+1. Press _DOWNLOAD_.
+1. Select the version (it will auto select the latest) &rarr; press _DOWNLOAD_.
+1. Restart Home Assistant then continue to [the setup section](#setup).
 
-### Manual
+### Manual Download
 
-1. Copy `custom_components/zha_lock_manager` into your HA `config/custom_components` folder.
-2. Restart Home Assistant.
+1. Go to the [release page][releases] and download the zip file attached
+   to the latest release.
+1. Unpack the zip file and move `custom_components/zha_lock_manager` to the following
+   directory of your Home Assistant configuration: `/config/custom_components/`.
+1. Restart Home Assistant then continue to [the setup section](#setup).
 
 ## Setup
 
-1. Go to **Settings**, **Devices and services**, **Integrations**.
-2. Click **Add integration**, search for **ZHA Lock Manager**.
-3. Select one or more ZHA lock entities to manage. You can add or remove locks later in Options.
-4. Finish the flow. A **Zigbee Locks** sidebar panel will appear.
+Open your Home Assistant instance and start setting up by following these steps:
+
+1. Navigate to "Settings" &rarr; "Devices & Services"
+1. Click "+ Add Integration"
+1. Search for and select &rarr; "ZHA Lock Manager"
+
+Or you can use the My Home Assistant Button below.
+
+[![Add Integration](https://my.home-assistant.io/badges/config_flow_start.svg)][config-flow-start]
+
+Follow the instructions to configure the integration.
 
 ## Options
 
@@ -99,7 +117,7 @@ Open the **Zigbee Locks** panel from the sidebar.
 ### Per lock fields
 
 - **Max slots**: how many numeric slots you want to manage in the panel. This does not change the lock hardware limit.  
-- **Slot offset**: offset to apply when talking to the lock. Set this if your lock reports a `code_slot` that is shifted from the numbers you prefer to see in the UI.
+- **Slot offset**: offset to apply when talking to the lock. Set this if your lock reports a `code_slot` that is shifted from the numbers you see in the UI.
 
 ## Data storage and security
 

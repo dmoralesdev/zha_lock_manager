@@ -35,7 +35,7 @@ class ZhaLockManagerPanel extends LitElement {
   }
 
   get isMobile() {
-    return this.narrow || window.innerWidth <= 820;
+    return this.narrow || window.innerWidth <= 1200;
   }
 
   async _ws(type, payload = {}) {
@@ -213,20 +213,28 @@ class ZhaLockManagerPanel extends LitElement {
     `;
   }
 
+  _menuAction(e) {
+    // e.detail.index or e.detail.item may be present depending on MWC version
+    const item = e.detail.item || e.target.selected; // defensive
+    const value = item?.getAttribute?.("value") || item?.value;
+    if (value === "refresh") this._refresh();
+  }
+
   render() {
     const lock = this._lock;
     return html`
       <ha-app-layout>
         <app-header slot="header" fixed>
-          <!-- Row 1: hamburger only -->
-          <app-toolbar class="menubar">
-            <ha-menu-button .hass=${this.hass} .narrow=${this.isMobile}></ha-menu-button>
-          </app-toolbar>
-          <!-- Row 2: title left, refresh right -->
           <app-toolbar class="titlebar">
+            <ha-menu-button .hass=${this.hass} .narrow=${this.isMobile}></ha-menu-button>
             <img class="brand" src=${this._brandIcon} alt="ZHA Lock Manager icon" />
             <div class="title" main-title>ZHA Lock Manager</div>
-            <ha-button class="refresh" @click=${() => this._refresh()} ?disabled=${this._busy}>Refresh</ha-button>
+            <ha-button-menu corner="BOTTOM_START" @action=${(e) => this._menuAction(e)} ?disabled=${this._busy}>
+              <mwc-icon-button slot="trigger" title="Menu">
+                <ha-icon icon="hass:dots-vertical"></ha-icon>
+              </mwc-icon-button>
+              <mwc-list-item value="refresh">Refresh</mwc-list-item>
+            </ha-button-menu>
           </app-toolbar>
         </app-header>
 
@@ -296,10 +304,10 @@ class ZhaLockManagerPanel extends LitElement {
       :host { --zlm-control-height: 44px; }
 
       /* Header split into two toolbars */
-      .menubar { min-height: 56px; padding: 0 8px; }
       .titlebar { min-height: 56px; padding: 0 20px; display: flex; align-items: center; gap: 8px; }
-      .brand { width: 44px; height: 44px; border-radius: 6px; flex: 0 0 auto; margin-bottom: 12px; }
-      .title { font-size: 24px; font-weight: 700; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .titlebar mwc-icon-button ha-icon { display: inline-block; transform: translateY(-2px); }
+      .brand { width: 36px; height: 36px; border-radius: 6px; flex: 0 0 auto; margin-bottom: 12px; }
+      .title { font-size: 20px; font-weight: 700; flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .refresh { margin-left: auto; white-space: nowrap; }
 
       /* Layout */
