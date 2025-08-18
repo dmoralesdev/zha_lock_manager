@@ -142,7 +142,11 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
             ),
             # Global Alarmo settings, apply to all locks
             vol.Optional(CONF_ALARMO_ENABLED, default=alarmo_enabled_default): bool,
-            vol.Optional(CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default): str,
+            vol.Optional(
+                CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default
+            ): selector.EntitySelector(
+                selector.EntitySelectorConfig(domain="alarm_control_panel")
+            ),
         }
 
         if user_input is not None:
