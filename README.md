@@ -53,21 +53,37 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 
 ### HACS
 
-1. In HACS, add the custom repository: "https://github.com/dmoralesdev/zha_lock_manager", then download **ZHA Lock Manager**.
-2. Restart Home Assistant.
+Installation through HACS is the preferred installation method.
 
-### Manual
+[![Open the ZHA Lock Manager integration in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dmoralesdev&repository=zha_lock_manager&category=integration)
 
-1. Copy `custom_components/zha_lock_manager` into your HA `config/custom_components` folder.
-2. Restart Home Assistant.
+1. Click the button above or go to HACS &rarr; Integrations &rarr; search for
+   "ZHA Lock Manager" &rarr; select it.
+2. Press _DOWNLOAD_.
+3. Select the version (it will auto select the latest) &rarr; press _DOWNLOAD_.
+4. Restart Home Assistant then continue to [the setup section](#setup).
+
+### Manual Download
+
+1. Go to the [release page](https://github.com/dmoralesdev/zha_lock_manager/releases) and download the zip attached
+   to the latest release.
+2. Unpack the zip file and move `custom_components/zha_lock_manager` to the following
+   directory of your Home Assistant configuration: `/config/custom_components/`.
+3. Restart Home Assistant then continue to [the setup section](#setup).
 
 ## Setup
 
-1. Go to **Settings**, **Devices and services**, **Integrations**.
-2. Click **Add integration**, search for **ZHA Lock Manager** OR click the button below: 
+Open your Home Assistant instance and start setting up by following these steps:
+
+1. Navigate to "Settings" &rarr; "Devices & Services"
+2. Click "+ Add Integration"
+3. Search for and select &rarr; "ZHA Lock Manager"
+
+Or you can use the My Home Assistant Button below.
+
 [![Open your Home Assistant and add this integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=zha_lock_manager)
-3. Select one or more ZHA lock entities to manage. You can add or remove locks later in Options.
-4. Finish the flow. A **Zigbee Locks** sidebar panel will appear.
+
+Follow the instructions to select your compatible lock(s) and optionally enable the Alarmo integration.
 
 ## Options
 
