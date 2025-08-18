@@ -65,7 +65,7 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 
 1. Go to **Settings**, **Devices and services**, **Integrations**.
 2. Click **Add integration**, search for **ZHA Lock Manager** OR click the button below: 
-[![Open your Home Assistant and add this integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=zha_lock_manager).
+[![Open your Home Assistant and add this integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=zha_lock_manager)
 3. Select one or more ZHA lock entities to manage. You can add or remove locks later in Options.
 4. Finish the flow. A **Zigbee Locks** sidebar panel will appear.
 
