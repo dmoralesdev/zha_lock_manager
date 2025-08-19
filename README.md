@@ -89,8 +89,8 @@ Follow the instructions to select your compatible lock(s) and optionally enable 
 Open **Settings → Devices and services → ZHA Lock Manager → Configure**.
 
 - **Locks**: pick which ZHA locks this integration manages. You can add or remove locks at any time.  
-- **Enable Alarmo integration**: enable the global Alarmo hook.  
-- **Alarmo entity_id**: set your `alarm_control_panel` entity.
+- **Enable Alarmo integration (Optional)**: enable the global Alarmo hook.  
+- **Alarmo Entity**: set your `alarm_control_panel` entity.
 
 Saving Options reloads the entry, updates the local store to match the selection, and refreshes the panel.
 

@@ -8,7 +8,7 @@
           "data": {
             "locks": "Locks",
             "alarmo_enabled": "Enable Alarmo integration (Optional)",
-            "alarmo_entity_id": "Alarmo entity_id"
+            "alarmo_entity_id": "Alarmo Entity"
           }
         }
       }
@@ -16,11 +16,11 @@
     "options": {
       "step": {
         "main": {
-          "title": "ZHA Lock Manager Options",
-          "description": "Pick the Zigbee locks you want to manage and enable Alarmo integration.",
+          "title": "ZHA Lock Manager - Options",
+          "description": "Pick the Zigbee locks you want to manage and optionally enable Alarmo.",
           "data": {
             "alarmo_enabled": "Enable Alarmo integration (Optional)",
-            "alarmo_entity_id": "Alarmo entity_id"
+            "alarmo_entity_id": "Alarmo Entity"
           }
         }
       }

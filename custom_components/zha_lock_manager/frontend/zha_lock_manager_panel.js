@@ -334,7 +334,7 @@ class ZhaLockManagerPanel extends LitElement {
       }
       .field { display: flex; flex-direction: column; justify-content: center; }
       .cap { font-size: 0.92rem; margin-bottom: 6px; opacity: 0.9; }
-      .field input { height: var(--zlm-control-height); padding: 6px 8px; }
+      .field input { height: var(--zlm-control-height); padding: 1px 8px; }
       .save-wrap { display: flex; flex-direction: column; justify-content: center; }
       .save {
         height: var(--zlm-control-height);
