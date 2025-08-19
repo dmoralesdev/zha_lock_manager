@@ -62,6 +62,8 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Initial setup: select ZHA locks and optional Alarmo support."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             selected_entities: list[str] = user_input.get(CONF_LOCKS, [])
             locks: list[dict[str, Any]] = []
@@ -71,18 +73,20 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     locks.append(lock_dict)
 
             alarmo_enabled = bool(user_input.get(CONF_ALARMO_ENABLED, False))
-            alarmo_entity = user_input.get(
-                CONF_ALARMO_ENTITY_ID, "alarm_control_panel.alarmo"
-            )
+            alarmo_entity = user_input.get(CONF_ALARMO_ENTITY_ID, "")
 
-            return self.async_create_entry(
-                title="ZHA Lock Manager",
-                data={CONF_LOCKS: locks},
-                options={
-                    CONF_ALARMO_ENABLED: alarmo_enabled,
-                    CONF_ALARMO_ENTITY_ID: alarmo_entity,
-                },
-            )
+            if alarmo_enabled and not alarmo_entity:
+                errors[CONF_ALARMO_ENTITY_ID] = "required"
+
+            if not errors:
+                return self.async_create_entry(
+                    title="ZHA Lock Manager",
+                    data={CONF_LOCKS: locks},
+                    options={
+                        CONF_ALARMO_ENABLED: alarmo_enabled,
+                        CONF_ALARMO_ENTITY_ID: alarmo_entity,
+                    },
+                )
 
         schema = vol.Schema(
             {
@@ -94,14 +98,14 @@ class ZLMCFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 ),
                 vol.Optional(CONF_ALARMO_ENABLED, default=False): bool,
-                vol.Optional(
-                    CONF_ALARMO_ENTITY_ID, default="alarm_control_panel.alarmo"
-                ): selector.EntitySelector(
+                vol.Optional(CONF_ALARMO_ENTITY_ID): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="alarm_control_panel")
                 ),
             }
         )
-        return self.async_show_form(step_id="user", data_schema=schema)
+        return self.async_show_form(
+            step_id="user", data_schema=schema, errors=errors
+        )
 
     async def async_step_import(self, user_input: dict[str, Any] | None = None):
         """YAML import path, delegates to user step."""
@@ -127,9 +131,7 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
         # Defaults for the form
         default_entities = list(by_entity.keys())
         alarmo_enabled_default = self.config_entry.options.get(CONF_ALARMO_ENABLED, False)
-        alarmo_entity_default = self.config_entry.options.get(
-            CONF_ALARMO_ENTITY_ID, "alarm_control_panel.alarmo"
-        )
+        alarmo_entity_default = self.config_entry.options.get(CONF_ALARMO_ENTITY_ID, "")
 
         fields: dict[Any, Any] = {
             # Let users add or remove managed locks in the future
@@ -143,13 +145,24 @@ class ZLMOptionsFlowHandler(config_entries.OptionsFlow):
             # Global Alarmo settings, apply to all locks
             vol.Optional(CONF_ALARMO_ENABLED, default=alarmo_enabled_default): bool,
             vol.Optional(
-                CONF_ALARMO_ENTITY_ID, default=alarmo_entity_default
+                CONF_ALARMO_ENTITY_ID,
+                default=alarmo_entity_default or vol.UNDEFINED,
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="alarm_control_panel")
             ),
         }
 
         if user_input is not None:
+            errors: dict[str, str] = {}
+            if user_input.get(CONF_ALARMO_ENABLED) and not user_input.get(
+                CONF_ALARMO_ENTITY_ID
+            ):
+                errors[CONF_ALARMO_ENTITY_ID] = "required"
+
+            if errors:
+                return self.async_show_form(
+                    step_id="main", data_schema=vol.Schema(fields), errors=errors
+                )
             # Merge selection into stored data:
             # keep existing per lock fields for locks that remain,
             # create defaults for brand new locks,
