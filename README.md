@@ -10,8 +10,7 @@ Includes a simple side panel to view and edit codes, per lock settings, and an o
 ## Requirements
 
 - Home Assistant 2025.8 or newer  
-- ZHA integration with your lock entities available  
-- HACS for easy install, or manual copy to `config/custom_components/zha_lock_manager`
+- Zigbee Home Automation (ZHA) integration with your lock entities  
 
 ## What this integration provides
  
